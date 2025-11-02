@@ -1,19 +1,17 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { DbModule } from './db/db.module';
-import { AuthModule } from './auth/auth.module';
-import { SocialMediaReportsModule } from './reports/social-media-reports.module';
-import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { DBModule } from '@/db/db.module';
+import { AuthModule } from '@/auth/auth.module';
+import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    DbModule,
+    DBModule,
     AuthModule,
-    SocialMediaReportsModule,
   ],
   providers: [
     {

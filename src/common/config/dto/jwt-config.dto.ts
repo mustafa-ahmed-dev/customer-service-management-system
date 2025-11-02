@@ -3,11 +3,11 @@ import { IsNotEmpty, IsString } from 'class-validator';
 export class JWTConfigDto {
   @IsNotEmpty()
   @IsString()
-  jwtSecret: string;
+  secret: string;
 
   @IsNotEmpty()
   @IsString()
-  jwtExpirationDuration: string;
+  expirationDuration: string;
 
   // @IsNotEmpty()
   // @IsString()

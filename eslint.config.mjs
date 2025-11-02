@@ -47,7 +47,7 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-argument': 'warn',
 
       // Let Prettier handle line endings & formatting
-      'linebreak-style': 'off',
+      'linebreak-style': ['error', 'windows'],
     },
   },
 );

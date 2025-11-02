@@ -1,8 +1,7 @@
-// src/common/modules/jwt/jwt.module.ts
 import { Module } from '@nestjs/common';
 import { JwtModule as NestJwtModule } from '@nestjs/jwt';
-import { ConfigModule } from '@common/modules/config/config.module';
-import { ConfigService } from '@common/modules/config/config.service';
+import { ConfigModule } from '@/config/config.module';
+import { ConfigService } from '@/config/config.service';
 
 @Module({
   imports: [
@@ -11,11 +10,11 @@ import { ConfigService } from '@common/modules/config/config.service';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.jwtConfig.jwtSecret,
+        secret: configService.jwtConfig.secret,
         signOptions: { expiresIn: '1d' },
       }),
     }),
   ],
-  exports: [NestJwtModule], // 👈 export NestJwtModule to use JwtService in other modules
+  exports: [NestJwtModule],
 })
 export class JwtConfigModule {}

@@ -52,7 +52,6 @@ export class ConfigService {
     return {
       user: this.configService.get<string>('MAIL_USER'),
       password: this.configService.get<string>('MAIL_APP_PASSWORD'),
-      notificationsEmails: this.configService.get<string[]>('ADMIN_EMAILS'),
     };
   }
 
@@ -70,8 +69,8 @@ export class ConfigService {
 
   private loadJWTConfigData(): JWTConfigDto {
     return {
-      jwtSecret: this.configService.get<string>('JWT_SECRET'),
-      jwtExpirationDuration: this.configService.get<string>(
+      secret: this.configService.get<string>('JWT_SECRET'),
+      expirationDuration: this.configService.get<string>(
         'JWT_EXPIRATION_DURATION',
       ),
       //   jwtAccessTokenSecret: this.configService.get<string>(
