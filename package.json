@@ -1,0 +1,40 @@
+{
+  "name": "customer-service-management-system",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:migrate": "tsx src/lib/db/migrate.ts",
+    "db:seed": "tsx src/lib/db/seed.ts"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.1.0",
+    "@ant-design/nextjs-registry": "^1.2.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "antd": "^5.28.1",
+    "argon2": "^0.44.0",
+    "drizzle-orm": "^0.44.7",
+    "next": "16.0.3",
+    "next-intl": "^4.5.3",
+    "postgres": "^3.4.7",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^3.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "dotenv": "^17.2.3",
+    "drizzle-kit": "^0.31.7",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.3",
+    "tsx": "^4.20.6",
+    "typescript": "^5"
+  }
+}
