@@ -79,16 +79,6 @@ export default function DashboardHome({ session }: DashboardHomeProps) {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Installment Cancelled"
-              value={stats.installmentCancelled}
-              prefix={<CreditCardOutlined />}
-              valueStyle={{ color: "#faad14" }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
               title="Late Orders"
               value={stats.lateOrders}
               prefix={<ClockCircleOutlined />}

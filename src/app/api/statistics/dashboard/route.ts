@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
   cancelledOrders,
-  installmentCancelledOrders,
   lateOrders,
   installmentOrders,
 } from "@/lib/db/schema";

@@ -14,6 +14,7 @@ import {
   Typography,
   Tooltip,
   Switch,
+  InputNumber,
 } from "antd";
 import {
   PlusOutlined,
@@ -30,6 +31,7 @@ import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
 
 const { Title } = Typography;
+const { TextArea } = Input;
 
 interface CancelledOrder {
   id: number;
@@ -38,6 +40,10 @@ interface CancelledOrder {
   cancellationReasonAr: string;
   systemName: string;
   systemNameAr: string;
+  paymentMethod: string;
+  cardholderName?: string;
+  totalAmount?: string;
+  notes?: string;
   employeeName: string;
   createdAt: string;
   updatedAt: string;
@@ -57,11 +63,29 @@ interface FormValues {
   orderNumber: string;
   cancellationReasonId: number;
   systemId: number;
+  paymentMethod: string;
+  cardholderName?: string;
+  totalAmount?: number;
+  notes?: string;
 }
 
 interface CancelledOrdersClientProps {
   session: SessionUser;
 }
+
+const PAYMENT_METHODS = [
+  "Cash on Delivery",
+  "Pay in Installment",
+  "Pay using Visa/Master card",
+  "Zain Cash",
+];
+
+const PAYMENT_METHOD_COLORS: Record<string, string> = {
+  "Cash on Delivery": "green",
+  "Pay in Installment": "blue",
+  "Pay using Visa/Master card": "purple",
+  "Zain Cash": "orange",
+};
 
 export default function CancelledOrdersClient({
   session,
@@ -73,6 +97,7 @@ export default function CancelledOrdersClient({
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<CancelledOrder | null>(null);
 
@@ -81,15 +106,18 @@ export default function CancelledOrdersClient({
     DropdownOption[]
   >([]);
 
+  // Watch payment method to show/hide conditional fields
+  const selectedPaymentMethod = Form.useWatch("paymentMethod", form);
+
   // Fetch dropdown options
   useEffect(() => {
     fetchOptions();
   }, []);
 
-  // Fetch orders when search or archive filter changes
+  // Fetch orders when filters change
   useEffect(() => {
     fetchOrders();
-  }, [searchText, showArchived]);
+  }, [searchText, showArchived, paymentMethodFilter]);
 
   const fetchOptions = async () => {
     try {
@@ -111,6 +139,8 @@ export default function CancelledOrdersClient({
       const params = new URLSearchParams();
       if (searchText) params.append("search", searchText);
       params.append("archived", showArchived.toString());
+      if (paymentMethodFilter)
+        params.append("paymentMethod", paymentMethodFilter);
 
       const response = await fetch(`/api/cancelled-orders?${params}`);
       if (response.ok) {
@@ -144,6 +174,12 @@ export default function CancelledOrdersClient({
       orderNumber: order.orderNumber,
       systemId: system?.id,
       cancellationReasonId: reason?.id,
+      paymentMethod: order.paymentMethod,
+      cardholderName: order.cardholderName,
+      totalAmount: order.totalAmount
+        ? parseFloat(order.totalAmount)
+        : undefined,
+      notes: order.notes,
     });
     setIsModalOpen(true);
   };
@@ -213,26 +249,32 @@ export default function CancelledOrdersClient({
       const headers = [
         "Order Number",
         "System",
+        "Payment Method",
         "Cancellation Reason",
+        "Cardholder Name",
+        "Total Amount",
         "Employee",
       ];
 
       const rows = orders.map((order) => [
         order.orderNumber,
         order.systemName,
+        order.paymentMethod,
         order.cancellationReason,
+        order.cardholderName || "-",
+        order.totalAmount
+          ? `$${parseFloat(order.totalAmount).toFixed(2)}`
+          : "-",
         order.employeeName,
       ]);
 
-      // Create a temporary table element in the DOM
       const table = document.createElement("table");
       table.style.borderCollapse = "collapse";
       table.style.width = "100%";
       table.style.fontFamily = "Arial, sans-serif";
       table.style.fontSize = "14px";
-      table.style.border = "2px solid #333"; // Dark outer border
+      table.style.border = "2px solid #333";
 
-      // Create header
       const thead = document.createElement("thead");
       const headerRow = document.createElement("tr");
       headerRow.style.backgroundColor = "#4285f4";
@@ -241,49 +283,43 @@ export default function CancelledOrdersClient({
       headers.forEach((header) => {
         const th = document.createElement("th");
         th.textContent = header;
-        th.style.border = "1px solid #333"; // Dark borders
+        th.style.border = "1px solid #333";
         th.style.padding = "10px";
-        th.style.textAlign = "center"; // Centered
+        th.style.textAlign = "center";
         th.style.fontWeight = "bold";
         headerRow.appendChild(th);
       });
       thead.appendChild(headerRow);
       table.appendChild(thead);
 
-      // Create body
       const tbody = document.createElement("tbody");
       rows.forEach((row, index) => {
         const tr = document.createElement("tr");
-        // Alternating colors: even rows = light gray, odd rows = white
         tr.style.backgroundColor = index % 2 === 0 ? "#f0f0f0" : "#ffffff";
 
         row.forEach((cell) => {
           const td = document.createElement("td");
           td.textContent = cell;
-          td.style.border = "1px solid #333"; // Dark borders
+          td.style.border = "1px solid #333";
           td.style.padding = "8px";
-          td.style.textAlign = "center"; // Centered
+          td.style.textAlign = "center";
           tr.appendChild(td);
         });
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
 
-      // Add table to document temporarily (hidden)
       table.style.position = "fixed";
       table.style.left = "-9999px";
       document.body.appendChild(table);
 
-      // Select the table
       const range = document.createRange();
       range.selectNode(table);
       window.getSelection()?.removeAllRanges();
       window.getSelection()?.addRange(range);
 
-      // Copy to clipboard
       document.execCommand("copy");
 
-      // Clean up
       window.getSelection()?.removeAllRanges();
       document.body.removeChild(table);
 
@@ -294,20 +330,27 @@ export default function CancelledOrdersClient({
     }
   };
 
-  // ADD THIS FUNCTION HERE ↓
   const exportToCSV = () => {
     try {
       const headers = [
         "Order Number",
         "System",
+        "Payment Method",
         "Cancellation Reason",
+        "Cardholder Name",
+        "Total Amount",
+        "Notes",
         "Employee",
       ];
 
       const rows = orders.map((order) => [
         order.orderNumber,
         order.systemName,
+        order.paymentMethod,
         order.cancellationReason,
+        order.cardholderName || "",
+        order.totalAmount ? parseFloat(order.totalAmount).toFixed(2) : "",
+        order.notes || "",
         order.employeeName,
       ]);
 
@@ -344,6 +387,7 @@ export default function CancelledOrdersClient({
       dataIndex: "orderNumber",
       key: "orderNumber",
       width: 150,
+      fixed: "left" as const,
     },
     {
       title: "System",
@@ -353,10 +397,42 @@ export default function CancelledOrdersClient({
       render: (text: string) => <Tag color="blue">{text}</Tag>,
     },
     {
+      title: "Payment Method",
+      dataIndex: "paymentMethod",
+      key: "paymentMethod",
+      width: 180,
+      render: (method: string) => (
+        <Tag color={PAYMENT_METHOD_COLORS[method] || "default"}>{method}</Tag>
+      ),
+    },
+    {
       title: "Cancellation Reason",
       dataIndex: "cancellationReason",
       key: "cancellationReason",
       width: 200,
+    },
+    {
+      title: "Cardholder Name",
+      dataIndex: "cardholderName",
+      key: "cardholderName",
+      width: 150,
+      render: (name: string) => name || "-",
+    },
+    {
+      title: "Total Amount",
+      dataIndex: "totalAmount",
+      key: "totalAmount",
+      width: 120,
+      render: (amount: string) =>
+        amount ? `$${parseFloat(amount).toFixed(2)}` : "-",
+    },
+    {
+      title: "Notes",
+      dataIndex: "notes",
+      key: "notes",
+      width: 150,
+      ellipsis: true,
+      render: (notes: string) => notes || "-",
     },
     {
       title: "Employee",
@@ -438,13 +514,26 @@ export default function CancelledOrdersClient({
         </Title>
         <Space wrap>
           <Input
-            placeholder="Search by order number or employee"
+            placeholder="Search by order number, employee, or cardholder"
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 300 }}
+            style={{ width: 350 }}
             allowClear
           />
+          <Select
+            placeholder="Filter by payment method"
+            value={paymentMethodFilter || undefined}
+            onChange={setPaymentMethodFilter}
+            style={{ width: 220 }}
+            allowClear
+          >
+            {PAYMENT_METHODS.map((method) => (
+              <Select.Option key={method} value={method}>
+                {method}
+              </Select.Option>
+            ))}
+          </Select>
           <Space>
             <InboxOutlined />
             <Switch
@@ -476,7 +565,7 @@ export default function CancelledOrdersClient({
         dataSource={orders}
         loading={loading}
         rowKey="id"
-        scroll={{ x: 1200 }}
+        scroll={{ x: 1800 }}
         pagination={{
           pageSize: 20,
           showSizeChanger: true,
@@ -492,7 +581,7 @@ export default function CancelledOrdersClient({
           form.resetFields();
         }}
         footer={null}
-        width={600}
+        width={700}
       >
         <Form
           form={form}
@@ -523,6 +612,22 @@ export default function CancelledOrdersClient({
           </Form.Item>
 
           <Form.Item
+            name="paymentMethod"
+            label="Payment Method"
+            rules={[
+              { required: true, message: "Please select payment method" },
+            ]}
+          >
+            <Select placeholder="Select payment method">
+              {PAYMENT_METHODS.map((method) => (
+                <Select.Option key={method} value={method}>
+                  {method}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
             name="cancellationReasonId"
             label="Cancellation Reason"
             rules={[
@@ -537,6 +642,54 @@ export default function CancelledOrdersClient({
               ))}
             </Select>
           </Form.Item>
+
+          {/* Conditional fields - only show for "Pay in Installment" */}
+          {selectedPaymentMethod === "Pay in Installment" && (
+            <>
+              <Form.Item
+                name="cardholderName"
+                label="Cardholder Name"
+                rules={[
+                  {
+                    required: true,
+                    message: "Please enter cardholder name",
+                  },
+                ]}
+              >
+                <Input placeholder="Enter cardholder name" />
+              </Form.Item>
+
+              <Form.Item
+                name="totalAmount"
+                label="Total Amount"
+                rules={[
+                  { required: true, message: "Please enter total amount" },
+                  {
+                    type: "number",
+                    min: 0,
+                    message: "Amount must be positive",
+                  },
+                ]}
+              >
+                <InputNumber
+                  placeholder="Enter amount"
+                  style={{ width: "100%" }}
+                  prefix="$"
+                  precision={2}
+                  min={0}
+                />
+              </Form.Item>
+
+              <Form.Item name="notes" label="Notes (Optional)">
+                <TextArea
+                  placeholder="Enter any additional notes"
+                  rows={4}
+                  maxLength={500}
+                  showCount
+                />
+              </Form.Item>
+            </>
+          )}
 
           <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
             <Space>

@@ -54,12 +54,6 @@ export default function DashboardLayoutClient({
         roles: ["admin", "moderator", "user"],
       },
       {
-        key: "/installment-cancelled",
-        icon: <CreditCardOutlined />,
-        label: "Installment Cancelled",
-        roles: ["admin", "moderator", "user"],
-      },
-      {
         key: "/late-orders",
         icon: <ClockCircleOutlined />,
         label: "Late Orders",

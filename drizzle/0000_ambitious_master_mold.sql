@@ -14,6 +14,10 @@ CREATE TABLE "cancelled_orders" (
 	"order_number" text NOT NULL,
 	"cancellation_reason_id" integer NOT NULL,
 	"system_id" integer NOT NULL,
+	"payment_method" text NOT NULL,
+	"cardholder_name" text,
+	"total_amount" numeric(10, 2),
+	"notes" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"created_by" integer NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
@@ -32,21 +36,6 @@ CREATE TABLE "governorates" (
 	"deactivated_at" timestamp,
 	"deactivated_by" integer,
 	CONSTRAINT "governorates_name_unique" UNIQUE("name")
-);
---> statement-breakpoint
-CREATE TABLE "installment_cancelled_orders" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"order_number" text NOT NULL,
-	"cardholder_name" text NOT NULL,
-	"total_amount" numeric(10, 2) NOT NULL,
-	"notes" text,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"created_by" integer NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"updated_by" integer NOT NULL,
-	"is_archived" boolean DEFAULT false NOT NULL,
-	"archived_at" timestamp,
-	"archived_by" integer
 );
 --> statement-breakpoint
 CREATE TABLE "installment_orders" (
@@ -113,9 +102,6 @@ ALTER TABLE "cancelled_orders" ADD CONSTRAINT "cancelled_orders_updated_by_users
 ALTER TABLE "cancelled_orders" ADD CONSTRAINT "cancelled_orders_archived_by_users_id_fk" FOREIGN KEY ("archived_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "governorates" ADD CONSTRAINT "governorates_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "governorates" ADD CONSTRAINT "governorates_deactivated_by_users_id_fk" FOREIGN KEY ("deactivated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "installment_cancelled_orders" ADD CONSTRAINT "installment_cancelled_orders_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "installment_cancelled_orders" ADD CONSTRAINT "installment_cancelled_orders_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "installment_cancelled_orders" ADD CONSTRAINT "installment_cancelled_orders_archived_by_users_id_fk" FOREIGN KEY ("archived_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "installment_orders" ADD CONSTRAINT "installment_orders_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "installment_orders" ADD CONSTRAINT "installment_orders_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "installment_orders" ADD CONSTRAINT "installment_orders_archived_by_users_id_fk" FOREIGN KEY ("archived_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -127,9 +113,8 @@ ALTER TABLE "systems" ADD CONSTRAINT "systems_created_by_users_id_fk" FOREIGN KE
 ALTER TABLE "systems" ADD CONSTRAINT "systems_deactivated_by_users_id_fk" FOREIGN KEY ("deactivated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "users" ADD CONSTRAINT "users_deactivated_by_users_id_fk" FOREIGN KEY ("deactivated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "cancelled_orders_order_number_idx" ON "cancelled_orders" USING btree ("order_number");--> statement-breakpoint
+CREATE INDEX "cancelled_orders_payment_method_idx" ON "cancelled_orders" USING btree ("payment_method");--> statement-breakpoint
 CREATE INDEX "cancelled_orders_archived_idx" ON "cancelled_orders" USING btree ("is_archived");--> statement-breakpoint
-CREATE INDEX "installment_cancelled_orders_order_number_idx" ON "installment_cancelled_orders" USING btree ("order_number");--> statement-breakpoint
-CREATE INDEX "installment_cancelled_orders_archived_idx" ON "installment_cancelled_orders" USING btree ("is_archived");--> statement-breakpoint
 CREATE INDEX "installment_orders_order_number_idx" ON "installment_orders" USING btree ("order_number");--> statement-breakpoint
 CREATE INDEX "installment_orders_installment_id_idx" ON "installment_orders" USING btree ("installment_id");--> statement-breakpoint
 CREATE INDEX "installment_orders_archived_idx" ON "installment_orders" USING btree ("is_archived");--> statement-breakpoint

@@ -66,6 +66,8 @@ export const cancelledOrders = pgTable(
   {
     id: serial("id").primaryKey(),
     orderNumber: text("order_number").notNull(),
+
+    // System and reason references
     cancellationReasonId: integer("cancellation_reason_id")
       .notNull()
       .references(() => cancellationReasons.id),
@@ -73,37 +75,13 @@ export const cancelledOrders = pgTable(
       .notNull()
       .references(() => systems.id),
 
-    // Audit fields
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    createdBy: integer("created_by")
-      .notNull()
-      .references(() => users.id),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-    updatedBy: integer("updated_by")
-      .notNull()
-      .references(() => users.id),
+    // NEW: Payment method field (required)
+    paymentMethod: text("payment_method").notNull(),
+    // Options: 'Cash on Delivery' | 'Pay in Installment' | 'Pay using Visa/Master card' | 'Zain Cash'
 
-    // Archive fields
-    isArchived: boolean("is_archived").default(false).notNull(),
-    archivedAt: timestamp("archived_at"),
-    archivedBy: integer("archived_by").references(() => users.id),
-  },
-  (table) => ({
-    orderNumberIdx: index("cancelled_orders_order_number_idx").on(
-      table.orderNumber
-    ),
-    archivedIdx: index("cancelled_orders_archived_idx").on(table.isArchived),
-  })
-);
-
-// Installment Cancelled Orders Table
-export const installmentCancelledOrders = pgTable(
-  "installment_cancelled_orders",
-  {
-    id: serial("id").primaryKey(),
-    orderNumber: text("order_number").notNull(),
-    cardholderName: text("cardholder_name").notNull(),
-    totalAmount: numeric("total_amount", { precision: 10, scale: 2 }).notNull(),
+    // NEW: Installment-specific fields (nullable, only for installment payments)
+    cardholderName: text("cardholder_name"),
+    totalAmount: numeric("total_amount", { precision: 10, scale: 2 }),
     notes: text("notes"),
 
     // Audit fields
@@ -121,14 +99,11 @@ export const installmentCancelledOrders = pgTable(
     archivedAt: timestamp("archived_at"),
     archivedBy: integer("archived_by").references(() => users.id),
   },
-  (table) => ({
-    orderNumberIdx: index("installment_cancelled_orders_order_number_idx").on(
-      table.orderNumber
-    ),
-    archivedIdx: index("installment_cancelled_orders_archived_idx").on(
-      table.isArchived
-    ),
-  })
+  (table) => [
+    index("cancelled_orders_order_number_idx").on(table.orderNumber),
+    index("cancelled_orders_payment_method_idx").on(table.paymentMethod),
+    index("cancelled_orders_archived_idx").on(table.isArchived),
+  ]
 );
 
 // Late Orders Table
