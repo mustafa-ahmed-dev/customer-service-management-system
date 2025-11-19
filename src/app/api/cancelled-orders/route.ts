@@ -9,7 +9,7 @@ import {
 import { eq, and, or, like, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
 
-// GET - Fetch all cancelled orders (non-archived)
+// GET - Fetch all cancelled orders (with archive filter)
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
+    const archived = searchParams.get("archived") === "true";
 
     const orders = await db
       .select({
@@ -31,6 +32,8 @@ export async function GET(request: NextRequest) {
         employeeName: users.fullName,
         createdAt: cancelledOrders.createdAt,
         updatedAt: cancelledOrders.updatedAt,
+        isArchived: cancelledOrders.isArchived,
+        archivedAt: cancelledOrders.archivedAt,
       })
       .from(cancelledOrders)
       .leftJoin(
@@ -41,7 +44,7 @@ export async function GET(request: NextRequest) {
       .leftJoin(users, eq(cancelledOrders.createdBy, users.id))
       .where(
         and(
-          eq(cancelledOrders.isArchived, false),
+          eq(cancelledOrders.isArchived, archived),
           search
             ? or(
                 like(cancelledOrders.orderNumber, `%${search}%`),

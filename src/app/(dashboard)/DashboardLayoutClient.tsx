@@ -1,24 +1,22 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Typography, Button } from 'antd';
+import { useState } from "react";
+import { Layout, Menu, Avatar, Dropdown, Typography, Button } from "antd";
 import {
   HomeOutlined,
   CloseCircleOutlined,
   CreditCardOutlined,
   ClockCircleOutlined,
   FileTextOutlined,
-  BarChartOutlined,
-  InboxOutlined,
   SettingOutlined,
   UserOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   TeamOutlined,
-} from '@ant-design/icons';
-import { usePathname, useRouter } from 'next/navigation';
-import type { SessionUser } from '@/lib/auth/session';
+} from "@ant-design/icons";
+import { usePathname, useRouter } from "next/navigation";
+import type { SessionUser } from "@/lib/auth/session";
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -40,70 +38,54 @@ export default function DashboardLayoutClient({
   const getMenuItems = () => {
     const allItems = [
       {
-        key: '/dashboard',
+        key: "/dashboard",
         icon: <HomeOutlined />,
-        label: 'Dashboard',
-        roles: ['admin', 'moderator', 'user'],
+        label: "Dashboard",
+        roles: ["admin", "moderator", "user"],
       },
       {
-        type: 'divider',
-        roles: ['admin', 'moderator', 'user'],
+        type: "divider",
+        roles: ["admin", "moderator", "user"],
       },
       {
-        key: '/cancelled-orders',
+        key: "/cancelled-orders",
         icon: <CloseCircleOutlined />,
-        label: 'Cancelled Orders',
-        roles: ['admin', 'moderator', 'user'],
+        label: "Cancelled Orders",
+        roles: ["admin", "moderator", "user"],
       },
       {
-        key: '/installment-cancelled',
+        key: "/installment-cancelled",
         icon: <CreditCardOutlined />,
-        label: 'Installment Cancelled',
-        roles: ['admin', 'moderator', 'user'],
+        label: "Installment Cancelled",
+        roles: ["admin", "moderator", "user"],
       },
       {
-        key: '/late-orders',
+        key: "/late-orders",
         icon: <ClockCircleOutlined />,
-        label: 'Late Orders',
-        roles: ['admin', 'moderator', 'user'],
+        label: "Late Orders",
+        roles: ["admin", "moderator", "user"],
       },
       {
-        key: '/installment-orders',
+        key: "/installment-orders",
         icon: <FileTextOutlined />,
-        label: 'Installment Orders',
-        roles: ['admin', 'moderator', 'user'],
+        label: "Installment Orders",
+        roles: ["admin", "moderator", "user"],
       },
       {
-        type: 'divider',
-        roles: ['admin', 'moderator'],
+        type: "divider",
+        roles: ["admin", "moderator"],
       },
       {
-        key: '/statistics',
-        icon: <BarChartOutlined />,
-        label: 'Statistics',
-        roles: ['admin', 'moderator'],
-      },
-      {
-        key: '/archive',
-        icon: <InboxOutlined />,
-        label: 'Archive',
-        roles: ['admin', 'moderator'],
-      },
-      {
-        type: 'divider',
-        roles: ['admin', 'moderator'],
-      },
-      {
-        key: '/settings',
+        key: "/settings",
         icon: <SettingOutlined />,
-        label: 'Settings',
-        roles: ['admin', 'moderator'],
+        label: "Settings",
+        roles: ["admin", "moderator"],
       },
       {
-        key: '/users',
+        key: "/users",
         icon: <TeamOutlined />,
-        label: 'User Management',
-        roles: ['admin'],
+        label: "User Management",
+        roles: ["admin"],
       },
     ];
 
@@ -114,48 +96,47 @@ export default function DashboardLayoutClient({
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
+      await fetch("/api/auth/logout", {
+        method: "POST",
       });
-      window.location.href = '/login';
+      window.location.href = "/login";
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
     }
   };
 
   const userMenuItems = [
     {
-      key: 'profile',
+      key: "profile",
       icon: <UserOutlined />,
-      label: 'Profile',
+      label: "Profile",
       onClick: () => {
-        // TODO: Navigate to profile page
-        console.log('Profile clicked');
+        console.log("Profile clicked");
       },
     },
     {
-      type: 'divider' as const,
+      type: "divider" as const,
     },
     {
-      key: 'logout',
+      key: "logout",
       icon: <LogoutOutlined />,
-      label: 'Logout',
+      label: "Logout",
       danger: true,
       onClick: handleLogout,
     },
   ];
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: "100vh" }}>
       {/* Sidebar */}
       <Sider
         trigger={null}
         collapsible
         collapsed={collapsed}
         style={{
-          overflow: 'auto',
-          height: '100vh',
-          position: 'fixed',
+          overflow: "auto",
+          height: "100vh",
+          position: "fixed",
           left: 0,
           top: 0,
           bottom: 0,
@@ -164,16 +145,16 @@ export default function DashboardLayoutClient({
         <div
           style={{
             height: 64,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "white",
             fontSize: collapsed ? 16 : 20,
-            fontWeight: 'bold',
-            transition: 'all 0.2s',
+            fontWeight: "bold",
+            transition: "all 0.2s",
           }}
         >
-          {collapsed ? 'CS' : 'Customer Service'}
+          {collapsed ? "CS" : "Customer Service"}
         </div>
         <Menu
           theme="dark"
@@ -187,17 +168,19 @@ export default function DashboardLayoutClient({
       </Sider>
 
       {/* Main Layout */}
-      <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'all 0.2s' }}>
+      <Layout
+        style={{ marginLeft: collapsed ? 80 : 200, transition: "all 0.2s" }}
+      >
         {/* Header */}
         <Header
           style={{
-            padding: '0 24px',
-            background: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid #f0f0f0',
-            position: 'sticky',
+            padding: "0 24px",
+            background: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            borderBottom: "1px solid #f0f0f0",
+            position: "sticky",
             top: 0,
             zIndex: 1,
           }}
@@ -207,7 +190,7 @@ export default function DashboardLayoutClient({
             icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             onClick={() => setCollapsed(!collapsed)}
             style={{
-              fontSize: '16px',
+              fontSize: "16px",
               width: 64,
               height: 64,
             }}
@@ -216,18 +199,18 @@ export default function DashboardLayoutClient({
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
             <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
+                display: "flex",
+                alignItems: "center",
                 gap: 12,
-                cursor: 'pointer',
+                cursor: "pointer",
               }}
             >
               <div
                 style={{
-                  textAlign: 'right',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  flexDirection: 'column',
+                  textAlign: "right",
+                  display: "flex",
+                  justifyContent: "center",
+                  flexDirection: "column",
                 }}
               >
                 <Text strong>{session.fullName}</Text>
@@ -237,7 +220,7 @@ export default function DashboardLayoutClient({
               </div>
               <Avatar
                 size="large"
-                style={{ backgroundColor: '#1890ff' }}
+                style={{ backgroundColor: "#1890ff" }}
                 icon={<UserOutlined />}
               />
             </div>
@@ -247,10 +230,10 @@ export default function DashboardLayoutClient({
         {/* Content */}
         <Content
           style={{
-            margin: '24px',
+            margin: "24px",
             padding: 24,
             minHeight: 280,
-            background: '#fff',
+            background: "#fff",
             borderRadius: 8,
           }}
         >
