@@ -50,12 +50,10 @@ async function seed() {
     await db.insert(systems).values([
       {
         name: "Magento",
-        nameAr: "ماجنتو",
         createdBy: adminUsers[0].id,
       },
       {
         name: "NetSuite",
-        nameAr: "نيت سويت",
         createdBy: adminUsers[0].id,
       },
     ]);
@@ -66,67 +64,54 @@ async function seed() {
     await db.insert(cancellationReasons).values([
       {
         reason: "Suspension Of Employee Installments",
-        reasonAr: "تعليق أقساط الموظف",
         createdBy: adminUsers[0].id,
       },
       {
         reason: "Test Order",
-        reasonAr: "طلب تجريبي",
         createdBy: adminUsers[0].id,
       },
       {
         reason: "Preparation Error",
-        reasonAr: "خطأ في التحضير",
         createdBy: adminUsers[0].id,
       },
       {
         reason: "Out Of Delivery Zone",
-        reasonAr: "خارج منطقة التوصيل",
         createdBy: adminUsers[0].id,
       },
       {
         reason: "Item Unavailable",
-        reasonAr: "المنتج غير متوفر",
         createdBy: adminUsers[0].id,
       },
       {
         reason: "Financial Reasons",
-        reasonAr: "أسباب مالية",
         createdBy: adminUsers[0].id,
       },
       {
         reason: "Personal Circumstance",
-        reasonAr: "ظروف شخصية",
         createdBy: adminUsers[0].id,
       },
       {
         reason: "Order By Mistake",
-        reasonAr: "طلب بالخطأ",
         createdBy: adminUsers[0].id,
       },
       {
         reason: "No answer / Phone unreachable",
-        reasonAr: "لا إجابة / الهاتف لا يمكن الوصول إليه",
         createdBy: adminUsers[0].id,
       },
       {
         reason: "Customer Would Like To Amend Order",
-        reasonAr: "العميل يرغب في تعديل الطلب",
         createdBy: adminUsers[0].id,
       },
       {
         reason: "Late Delivery",
-        reasonAr: "تأخير في التوصيل",
         createdBy: adminUsers[0].id,
       },
       {
         reason: "Cardholder is not present",
-        reasonAr: "حامل البطاقة غير موجود",
         createdBy: adminUsers[0].id,
       },
       {
         reason: "Order duplicated",
-        reasonAr: "طلب مكرر",
         createdBy: adminUsers[0].id,
       },
     ]);
@@ -135,37 +120,18 @@ async function seed() {
     // Create governorates
     console.log("Creating governorates...");
     await db.insert(governorates).values([
-      { name: "Al Anbar", nameAr: "الأنبار", createdBy: adminUsers[0].id },
       {
         name: "Al Qadisiyyah",
-        nameAr: "القادسية",
         createdBy: adminUsers[0].id,
       },
-      { name: "Babil", nameAr: "بابل", createdBy: adminUsers[0].id },
-      { name: "Baghdad", nameAr: "بغداد", createdBy: adminUsers[0].id },
-      { name: "Basra", nameAr: "البصرة", createdBy: adminUsers[0].id },
-      { name: "Dhi Qar", nameAr: "ذي قار", createdBy: adminUsers[0].id },
-      { name: "Diyala", nameAr: "ديالى", createdBy: adminUsers[0].id },
-      { name: "Erbil", nameAr: "أربيل", createdBy: adminUsers[0].id },
-      { name: "Karbala", nameAr: "كربلاء", createdBy: adminUsers[0].id },
-      { name: "Kirkuk", nameAr: "كركوك", createdBy: adminUsers[0].id },
-      { name: "Maysan", nameAr: "ميسان", createdBy: adminUsers[0].id },
-      { name: "Ninawa", nameAr: "نينوى", createdBy: adminUsers[0].id },
-      { name: "Muthana", nameAr: "المثنى", createdBy: adminUsers[0].id },
-      { name: "Najaf", nameAr: "النجف", createdBy: adminUsers[0].id },
       {
         name: "Salah ad-Din",
-        nameAr: "صلاح الدين",
         createdBy: adminUsers[0].id,
       },
       {
         name: "Sulaymaniyyah",
-        nameAr: "السليمانية",
         createdBy: adminUsers[0].id,
       },
-      { name: "Wasit", nameAr: "واسط", createdBy: adminUsers[0].id },
-      { name: "Halabja", nameAr: "حلبجة", createdBy: adminUsers[0].id },
-      { name: "Dohuk", nameAr: "دهوك", createdBy: adminUsers[0].id },
     ]);
     console.log("✅ Created governorates");
 

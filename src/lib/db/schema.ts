@@ -29,7 +29,6 @@ export const users = pgTable("users", {
 export const systems = pgTable("systems", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
-  nameAr: text("name_ar").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   createdBy: integer("created_by").references(() => users.id),
   deactivatedAt: timestamp("deactivated_at"),
@@ -40,7 +39,6 @@ export const systems = pgTable("systems", {
 export const cancellationReasons = pgTable("cancellation_reasons", {
   id: serial("id").primaryKey(),
   reason: text("reason").notNull().unique(),
-  reasonAr: text("reason_ar").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   createdBy: integer("created_by").references(() => users.id),
   deactivatedAt: timestamp("deactivated_at"),
@@ -51,7 +49,6 @@ export const cancellationReasons = pgTable("cancellation_reasons", {
 export const governorates = pgTable("governorates", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
-  nameAr: text("name_ar").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   createdBy: integer("created_by").references(() => users.id),
   deactivatedAt: timestamp("deactivated_at"),
@@ -133,14 +130,12 @@ export const lateOrders = pgTable(
     archivedAt: timestamp("archived_at"),
     archivedBy: integer("archived_by").references(() => users.id),
   },
-  (table) => ({
-    orderNumberIdx: index("late_orders_order_number_idx").on(table.orderNumber),
-    governorateIdx: index("late_orders_governorate_idx").on(
-      table.governorateId
-    ),
-    orderDateIdx: index("late_orders_order_date_idx").on(table.orderDate),
-    archivedIdx: index("late_orders_archived_idx").on(table.isArchived),
-  })
+  (table) => [
+    index("late_orders_order_number_idx").on(table.orderNumber),
+    index("late_orders_governorate_idx").on(table.governorateId),
+    index("late_orders_order_date_idx").on(table.orderDate),
+    index("late_orders_archived_idx").on(table.isArchived),
+  ]
 );
 
 // Installment Orders Table

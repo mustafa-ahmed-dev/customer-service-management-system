@@ -16,7 +16,7 @@ export const PERMISSIONS = {
   VIEW_DASHBOARD: ["admin", "moderator"],
 
   // Settings management
-  ADD_EDIT_SETTINGS: ["admin", "moderator"],
+  MANAGE_SETTINGS: ["admin", "moderator"],
   DEACTIVATE_SETTINGS: ["admin"], // ONLY admin
 
   // User management
