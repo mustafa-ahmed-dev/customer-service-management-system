@@ -6,7 +6,7 @@ import {
   systems,
   users,
 } from "@/lib/db/schema";
-import { eq, like, or, desc, and } from "drizzle-orm";
+import { eq, like, or, desc, and, isNull } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
 
 // GET - Fetch cancelled orders
@@ -20,16 +20,50 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
     const archived = searchParams.get("archived") === "true";
-    const paymentMethodFilter = searchParams.get("paymentMethod") || "";
+    const paymentMethods = searchParams.get("paymentMethods") || "";
+    const systemIds = searchParams.get("systemIds") || "";
+    const reasonIds = searchParams.get("reasonIds") || "";
+
+    // Parse comma-separated filters
+    const paymentMethodArray = paymentMethods ? paymentMethods.split(",") : [];
+    const systemIdArray = systemIds ? systemIds.split(",").map(Number) : [];
+    const reasonIdArray = reasonIds ? reasonIds.split(",").map(Number) : [];
+
+    // Build where conditions
+    const conditions = [
+      eq(cancelledOrders.isArchived, archived),
+      search
+        ? or(
+            like(cancelledOrders.orderNumber, `%${search}%`),
+            like(users.fullName, `%${search}%`),
+            like(cancelledOrders.cardholderName, `%${search}%`)
+          )
+        : undefined,
+      paymentMethodArray.length > 0
+        ? or(
+            ...paymentMethodArray.map((pm) =>
+              eq(cancelledOrders.paymentMethod, pm)
+            )
+          )
+        : undefined,
+      systemIdArray.length > 0
+        ? or(...systemIdArray.map((id) => eq(cancelledOrders.systemId, id)))
+        : undefined,
+      reasonIdArray.length > 0
+        ? or(
+            ...reasonIdArray.map((id) =>
+              eq(cancelledOrders.cancellationReasonId, id)
+            )
+          )
+        : undefined,
+    ].filter(Boolean);
 
     const orders = await db
       .select({
         id: cancelledOrders.id,
         orderNumber: cancelledOrders.orderNumber,
         cancellationReason: cancellationReasons.reason,
-        cancellationReasonAr: cancellationReasons.reasonAr,
         systemName: systems.name,
-        systemNameAr: systems.nameAr,
         paymentMethod: cancelledOrders.paymentMethod,
         cardholderName: cancelledOrders.cardholderName,
         totalAmount: cancelledOrders.totalAmount,
@@ -47,21 +81,7 @@ export async function GET(request: NextRequest) {
       )
       .leftJoin(systems, eq(cancelledOrders.systemId, systems.id))
       .leftJoin(users, eq(cancelledOrders.createdBy, users.id))
-      .where(
-        and(
-          eq(cancelledOrders.isArchived, archived),
-          search
-            ? or(
-                like(cancelledOrders.orderNumber, `%${search}%`),
-                like(users.fullName, `%${search}%`),
-                like(cancelledOrders.cardholderName, `%${search}%`)
-              )
-            : undefined,
-          paymentMethodFilter
-            ? eq(cancelledOrders.paymentMethod, paymentMethodFilter)
-            : undefined
-        )
-      )
+      .where(and(...conditions))
       .orderBy(desc(cancelledOrders.createdAt));
 
     return NextResponse.json({ orders });

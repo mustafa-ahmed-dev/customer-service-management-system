@@ -22,8 +22,8 @@ async function seed() {
   try {
     // Create admin users
     console.log("Creating admin users...");
-    const hashedPassword1 = await argon2.hash("Admin@2025"); // Change this password
-    const hashedPassword2 = await argon2.hash("Admin@2025"); // Change this password
+    const hashedPassword1 = await argon2.hash("Elryan@12345"); // Change this password
+    const hashedPassword2 = await argon2.hash("Elryan@12345"); // Change this password
 
     const adminUsers = await db
       .insert(users)

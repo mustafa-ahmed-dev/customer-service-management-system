@@ -37,9 +37,7 @@ interface CancelledOrder {
   id: number;
   orderNumber: string;
   cancellationReason: string;
-  cancellationReasonAr: string;
   systemName: string;
-  systemNameAr: string;
   paymentMethod: string;
   cardholderName?: string;
   totalAmount?: string;
@@ -54,9 +52,7 @@ interface CancelledOrder {
 interface DropdownOption {
   id: number;
   name?: string;
-  nameAr?: string;
   reason?: string;
-  reasonAr?: string;
 }
 
 interface FormValues {
@@ -97,7 +93,11 @@ export default function CancelledOrdersClient({
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("");
+  const [paymentMethodFilters, setPaymentMethodFilters] = useState<string[]>(
+    []
+  );
+  const [systemFilters, setSystemFilters] = useState<number[]>([]);
+  const [reasonFilters, setReasonFilters] = useState<number[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<CancelledOrder | null>(null);
 
@@ -117,7 +117,14 @@ export default function CancelledOrdersClient({
   // Fetch orders when filters change
   useEffect(() => {
     fetchOrders();
-  }, [searchText, showArchived, paymentMethodFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    searchText,
+    showArchived,
+    paymentMethodFilters,
+    systemFilters,
+    reasonFilters,
+  ]);
 
   const fetchOptions = async () => {
     try {
@@ -139,8 +146,15 @@ export default function CancelledOrdersClient({
       const params = new URLSearchParams();
       if (searchText) params.append("search", searchText);
       params.append("archived", showArchived.toString());
-      if (paymentMethodFilter)
-        params.append("paymentMethod", paymentMethodFilter);
+      if (paymentMethodFilters.length > 0) {
+        params.append("paymentMethods", paymentMethodFilters.join(","));
+      }
+      if (systemFilters.length > 0) {
+        params.append("systemIds", systemFilters.join(","));
+      }
+      if (reasonFilters.length > 0) {
+        params.append("reasonIds", reasonFilters.join(","));
+      }
 
       const response = await fetch(`/api/cancelled-orders?${params}`);
       if (response.ok) {
@@ -522,15 +536,47 @@ export default function CancelledOrdersClient({
             allowClear
           />
           <Select
+            mode="multiple"
             placeholder="Filter by payment method"
-            value={paymentMethodFilter || undefined}
-            onChange={setPaymentMethodFilter}
-            style={{ width: 220 }}
+            value={paymentMethodFilters}
+            onChange={setPaymentMethodFilters}
+            style={{ minWidth: 250 }}
             allowClear
+            maxTagCount="responsive"
           >
             {PAYMENT_METHODS.map((method) => (
               <Select.Option key={method} value={method}>
                 {method}
+              </Select.Option>
+            ))}
+          </Select>
+          <Select
+            mode="multiple"
+            placeholder="Filter by system"
+            value={systemFilters}
+            onChange={setSystemFilters}
+            style={{ minWidth: 200 }}
+            allowClear
+            maxTagCount="responsive"
+          >
+            {systems.map((system) => (
+              <Select.Option key={system.id} value={system.id}>
+                {system.name}
+              </Select.Option>
+            ))}
+          </Select>
+          <Select
+            mode="multiple"
+            placeholder="Filter by cancellation reason"
+            value={reasonFilters}
+            onChange={setReasonFilters}
+            style={{ minWidth: 250 }}
+            allowClear
+            maxTagCount="responsive"
+          >
+            {cancellationReasons.map((reason) => (
+              <Select.Option key={reason.id} value={reason.id}>
+                {reason.reason}
               </Select.Option>
             ))}
           </Select>

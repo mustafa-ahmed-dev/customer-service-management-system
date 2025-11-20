@@ -22,6 +22,7 @@
     "argon2": "^0.44.0",
     "dayjs": "^1.11.19",
     "drizzle-orm": "^0.44.7",
+    "exceljs": "^4.4.0",
     "next": "16.0.3",
     "next-intl": "^4.5.3",
     "postgres": "^3.4.7",
