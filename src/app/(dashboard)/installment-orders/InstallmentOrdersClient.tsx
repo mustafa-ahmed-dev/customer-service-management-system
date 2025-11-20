@@ -23,6 +23,7 @@ import {
   ReloadOutlined,
   UploadOutlined,
   ClearOutlined,
+  CopyOutlined,
 } from "@ant-design/icons";
 import type { SessionUser } from "@/lib/auth/session";
 import type { ColumnsType } from "antd/es/table";
@@ -141,6 +142,23 @@ export default function InstallmentOrdersClient({
       console.error("Toggle Magento error:", error);
       message.error("Failed to update");
     }
+  };
+
+  const handleCopyInstallmentData = (order: InstallmentOrder) => {
+    const text = `رقم الفاتورة: ${order.installmentId}
+اسم صاحب البطاقة: ${order.cardholderName || "-"}
+اسم ام صاحب البطاقة: ${order.cardholderMotherName || "-"}
+رقم الهاتف: ${order.cardholderPhoneNumber || "-"}`;
+
+    navigator.clipboard.writeText(text).then(
+      () => {
+        message.success("Installment data copied to clipboard!");
+      },
+      (err) => {
+        console.error("Copy failed:", err);
+        message.error("Failed to copy data");
+      }
+    );
   };
 
   const handleDelete = (order: InstallmentOrder) => {
@@ -481,15 +499,34 @@ export default function InstallmentOrdersClient({
       title: "Actions",
       key: "actions",
       fixed: "right" as const,
-      width: 100,
+      width: 140,
       render: (_: any, record: InstallmentOrder) => {
-        // If added to Magento and user is not admin/moderator, show nothing
+        // If added to Magento and user is not admin/moderator, show only copy button
         if (record.isAddedToMagento && !isAdminOrModerator) {
-          return <span style={{ color: "#999" }}>-</span>;
+          return (
+            <Space size="small">
+              <Tooltip title="Copy Installment Data">
+                <Button
+                  type="link"
+                  icon={<CopyOutlined />}
+                  onClick={() => handleCopyInstallmentData(record)}
+                  size="small"
+                />
+              </Tooltip>
+            </Space>
+          );
         }
 
         return (
           <Space size="small">
+            <Tooltip title="Copy Installment Data">
+              <Button
+                type="link"
+                icon={<CopyOutlined />}
+                onClick={() => handleCopyInstallmentData(record)}
+                size="small"
+              />
+            </Tooltip>
             <Tooltip
               title={
                 record.isAddedToMagento ? "Edit (Added to Magento)" : "Edit"
@@ -599,7 +636,7 @@ export default function InstallmentOrdersClient({
 
       <style jsx global>{`
         .magento-added-row td {
-          background-color: #f0f7beff !important;
+          background-color: #f7f6beff !important;
         }
       `}</style>
 
