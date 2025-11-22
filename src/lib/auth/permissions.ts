@@ -24,7 +24,7 @@ export const PERMISSIONS = {
 
   VIEW_FINANCE: ["admin", "moderator", "user"], // Everyone can view
   MANAGE_FINANCE: ["admin", "moderator", "user"], // But requires hasFinanceAccess attribute
-  MANAGE_PAYMENT_METHODS: ["admin", "moderator"], // In settings
+  MANAGE_PAYMENT_METHODS: ["admin", "moderator"], // Settings - admin/moderator only
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -34,17 +34,8 @@ export function hasPermission(userRole: Role, permission: Permission): boolean {
   return PERMISSIONS[permission].includes(userRole);
 }
 
-export function hasFinanceAccess(
-  userRole: Role,
-  hasFinanceAttribute: boolean,
-  operation: "view" | "manage"
-): boolean {
-  // View is allowed for all authenticated users
-  if (operation === "view") {
-    return true;
-  }
-
-  // Manage requires the special attribute (regardless of role)
+export function hasFinanceManageAccess(hasFinanceAttribute: boolean): boolean {
+  // Manage requires the special attribute (works for any role)
   return hasFinanceAttribute;
 }
 

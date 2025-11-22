@@ -13,6 +13,7 @@ import {
   Tag,
   InputNumber,
   Alert,
+  Switch,
 } from "antd";
 import {
   PlusOutlined,
@@ -20,6 +21,9 @@ import {
   EditOutlined,
   DeleteOutlined,
   DollarOutlined,
+  InboxOutlined,
+  ReloadOutlined,
+  UndoOutlined,
 } from "@ant-design/icons";
 import type { SessionUser } from "@/lib/auth/session";
 import type { ColumnsType } from "antd/es/table";
@@ -39,6 +43,7 @@ interface FinanceTransaction {
   employeeName: string;
   createdAt: string;
   updatedAt: string;
+  archivedAt?: string;
 }
 
 interface PaymentMethod {
@@ -70,7 +75,11 @@ export default function FinanceClient({ session }: FinanceClientProps) {
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentMethodFilter, setPaymentMethodFilter] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUnarchiveModalOpen, setIsUnarchiveModalOpen] = useState(false);
+  const [unarchivingTransaction, setUnarchivingTransaction] =
+    useState<FinanceTransaction | null>(null);
   const [editingTransaction, setEditingTransaction] =
     useState<FinanceTransaction | null>(null);
 
@@ -80,7 +89,7 @@ export default function FinanceClient({ session }: FinanceClientProps) {
   useEffect(() => {
     fetchTransactions();
     fetchPaymentMethods();
-  }, [searchText, statusFilter, paymentMethodFilter]);
+  }, [searchText, statusFilter, paymentMethodFilter, showArchived]);
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -90,12 +99,23 @@ export default function FinanceClient({ session }: FinanceClientProps) {
       if (statusFilter) params.append("status", statusFilter);
       if (paymentMethodFilter)
         params.append("paymentMethodId", paymentMethodFilter);
+      params.append("archived", showArchived.toString());
+
+      console.log("Fetching with params:", params.toString()); // DEBUG
+      console.log("Show archived:", showArchived); // DEBUG
 
       const response = await fetch(`/api/finance?${params}`);
+
+      console.log("Response status:", response.status); // DEBUG
+
       if (response.ok) {
         const data = await response.json();
+        console.log("Received data:", data); // DEBUG
+        console.log("Transactions count:", data.transactions?.length); // DEBUG
         setTransactions(data.transactions);
       } else {
+        const errorData = await response.json();
+        console.error("Error response:", errorData); // DEBUG
         message.error("Failed to fetch transactions");
       }
     } catch (error) {
@@ -147,15 +167,15 @@ export default function FinanceClient({ session }: FinanceClientProps) {
   };
 
   const handleDelete = (id: number) => {
-    if (session.role !== "admin") {
-      message.warning("Only admins can delete transactions");
+    if (!hasFullAccess) {
+      message.warning("You don't have permission to archive transactions");
       return;
     }
 
     modal.confirm({
-      title: "Delete Transaction",
-      content: "Are you sure you want to delete this transaction?",
-      okText: "Delete",
+      title: "Archive Transaction",
+      content: "Are you sure you want to archive this transaction?",
+      okText: "Archive",
       okType: "danger",
       onOk: async () => {
         try {
@@ -164,17 +184,54 @@ export default function FinanceClient({ session }: FinanceClientProps) {
           });
 
           if (response.ok) {
-            message.success("Transaction deleted successfully");
+            message.success("Transaction archived successfully");
             fetchTransactions();
           } else {
-            message.error("Failed to delete transaction");
+            message.error("Failed to archive transaction");
           }
         } catch (error) {
-          console.error("Failed to delete transaction:", error);
-          message.error("Failed to delete transaction");
+          console.error("Failed to archive transaction:", error);
+          message.error("Failed to archive transaction");
         }
       },
     });
+  };
+
+  const handleUnarchive = (transaction: FinanceTransaction) => {
+    if (!hasFullAccess) {
+      message.warning("You don't have permission to unarchive transactions");
+      return;
+    }
+    setUnarchivingTransaction(transaction);
+    setIsUnarchiveModalOpen(true);
+  };
+
+  const handleUnarchiveSubmit = async (values: { unarchiveNote: string }) => {
+    if (!unarchivingTransaction) return;
+
+    try {
+      const response = await fetch(
+        `/api/finance/${unarchivingTransaction.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ unarchiveNote: values.unarchiveNote }),
+        }
+      );
+
+      if (response.ok) {
+        message.success("Transaction unarchived successfully");
+        setIsUnarchiveModalOpen(false);
+        form.resetFields();
+        fetchTransactions();
+      } else {
+        const data = await response.json();
+        message.error(data.error || "Failed to unarchive transaction");
+      }
+    } catch (error) {
+      console.error("Failed to unarchive transaction:", error);
+      message.error("Failed to unarchive transaction");
+    }
   };
 
   const handleSubmit = async (values: FormValues) => {
@@ -282,27 +339,48 @@ export default function FinanceClient({ session }: FinanceClientProps) {
       width: 180,
       render: (date) => new Date(date).toLocaleString(),
     },
+    ...(showArchived
+      ? [
+          {
+            title: "Archived At",
+            dataIndex: "archivedAt",
+            key: "archivedAt",
+            width: 180,
+            render: (date: string) =>
+              date ? new Date(date).toLocaleString() : "-",
+          },
+        ]
+      : []),
     {
       title: "Actions",
       key: "actions",
       width: 120,
-      fixed: "right",
-      render: (_, record) => (
+      fixed: "right" as const,
+      render: (_: any, record: FinanceTransaction) => (
         <Space>
-          {hasFullAccess && (
-            <Button
-              type="link"
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
-            />
+          {hasFullAccess && !showArchived && (
+            <>
+              <Button
+                type="link"
+                icon={<EditOutlined />}
+                onClick={() => handleEdit(record)}
+              />
+              <Button
+                type="link"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => handleDelete(record.id)}
+              />
+            </>
           )}
-          {session.role === "admin" && (
+          {hasFullAccess && showArchived && (
             <Button
               type="link"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => handleDelete(record.id)}
-            />
+              icon={<UndoOutlined />}
+              onClick={() => handleUnarchive(record)}
+            >
+              Unarchive
+            </Button>
           )}
         </Space>
       ),
@@ -356,7 +434,19 @@ export default function FinanceClient({ session }: FinanceClientProps) {
               </Select.Option>
             ))}
           </Select>
-          {hasFullAccess && (
+          <Space>
+            <InboxOutlined />
+            <Switch
+              checked={showArchived}
+              onChange={setShowArchived}
+              checkedChildren="Archived"
+              unCheckedChildren="Active"
+            />
+          </Space>
+          <Button icon={<ReloadOutlined />} onClick={fetchTransactions}>
+            Refresh
+          </Button>
+          {hasFullAccess && !showArchived && (
             <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
               Add Transaction
             </Button>
@@ -462,6 +552,59 @@ export default function FinanceClient({ session }: FinanceClientProps) {
               <Button
                 onClick={() => {
                   setIsModalOpen(false);
+                  form.resetFields();
+                }}
+              >
+                Cancel
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Unarchive Modal */}
+      <Modal
+        title="Unarchive Transaction"
+        open={isUnarchiveModalOpen}
+        onCancel={() => {
+          setIsUnarchiveModalOpen(false);
+          form.resetFields();
+        }}
+        footer={null}
+        width={500}
+      >
+        <Alert
+          message="Unarchive Reason Required"
+          description="Please provide a reason for unarchiving this transaction. This note will be appended to the transaction notes."
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <Form form={form} layout="vertical" onFinish={handleUnarchiveSubmit}>
+          <Form.Item
+            label="Unarchive Reason"
+            name="unarchiveNote"
+            rules={[
+              { required: true, message: "Please enter unarchive reason" },
+              { min: 10, message: "Reason must be at least 10 characters" },
+            ]}
+          >
+            <TextArea
+              rows={4}
+              placeholder="Explain why this transaction is being unarchived..."
+              maxLength={500}
+              showCount
+            />
+          </Form.Item>
+
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit">
+                Unarchive
+              </Button>
+              <Button
+                onClick={() => {
+                  setIsUnarchiveModalOpen(false);
                   form.resetFields();
                 }}
               >

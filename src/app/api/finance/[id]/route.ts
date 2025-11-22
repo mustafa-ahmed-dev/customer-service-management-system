@@ -82,7 +82,7 @@ export async function PUT(
   }
 }
 
-// DELETE - Soft delete transaction (archive)
+// DELETE - Archive transaction (soft delete)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -93,9 +93,12 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Only admin can delete
-    if (session.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // Check if user has finance access for archiving
+    if (!session.hasFinanceAccess) {
+      return NextResponse.json(
+        { error: "You don't have permission to archive transactions" },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;
@@ -117,11 +120,95 @@ export async function DELETE(
       );
     }
 
-    return NextResponse.json({ message: "Transaction deleted successfully" });
+    return NextResponse.json({ message: "Transaction archived successfully" });
   } catch (error) {
-    console.error("Delete transaction error:", error);
+    console.error("Archive transaction error:", error);
     return NextResponse.json(
-      { error: "Failed to delete transaction" },
+      { error: "Failed to archive transaction" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH - Unarchive transaction
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check if user has finance access for unarchiving
+    if (!session.hasFinanceAccess) {
+      return NextResponse.json(
+        { error: "You don't have permission to unarchive transactions" },
+        { status: 403 }
+      );
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    const { unarchiveNote } = body;
+
+    if (!unarchiveNote || unarchiveNote.trim() === "") {
+      return NextResponse.json(
+        { error: "Unarchive note is required" },
+        { status: 400 }
+      );
+    }
+
+    // Get current transaction
+    const [currentTransaction] = await db
+      .select()
+      .from(financeTransactions)
+      .where(eq(financeTransactions.id, parseInt(id)))
+      .limit(1);
+
+    if (!currentTransaction) {
+      return NextResponse.json(
+        { error: "Transaction not found" },
+        { status: 404 }
+      );
+    }
+
+    // Append unarchive note to existing notes
+    const updatedNotes = currentTransaction.notes
+      ? `${
+          currentTransaction.notes
+        }\n\n[UNARCHIVED on ${new Date().toLocaleString()}]: ${unarchiveNote}`
+      : `[UNARCHIVED on ${new Date().toLocaleString()}]: ${unarchiveNote}`;
+
+    const [transaction] = await db
+      .update(financeTransactions)
+      .set({
+        isArchived: false,
+        archivedAt: null,
+        archivedBy: null,
+        notes: updatedNotes,
+        updatedBy: session.id,
+        updatedAt: new Date(),
+      })
+      .where(eq(financeTransactions.id, parseInt(id)))
+      .returning();
+
+    if (!transaction) {
+      return NextResponse.json(
+        { error: "Transaction not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      message: "Transaction unarchived successfully",
+      transaction,
+    });
+  } catch (error) {
+    console.error("Unarchive transaction error:", error);
+    return NextResponse.json(
+      { error: "Failed to unarchive transaction" },
       { status: 500 }
     );
   }

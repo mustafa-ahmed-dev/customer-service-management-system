@@ -19,9 +19,10 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status") || "";
     const paymentMethodId = searchParams.get("paymentMethodId") || "";
+    const showArchived = searchParams.get("archived") === "true";
 
     // Build where conditions
-    const conditions = [eq(financeTransactions.isArchived, false)];
+    const conditions = [eq(financeTransactions.isArchived, showArchived)];
 
     if (search) {
       conditions.push(
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
         employeeName: users.fullName,
         createdAt: financeTransactions.createdAt,
         updatedAt: financeTransactions.updatedAt,
+        archivedAt: financeTransactions.archivedAt,
       })
       .from(financeTransactions)
       .leftJoin(
