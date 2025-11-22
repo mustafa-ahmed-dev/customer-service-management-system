@@ -5,7 +5,6 @@ import { Layout, Menu, Avatar, Dropdown, Typography, Button } from "antd";
 import {
   HomeOutlined,
   CloseCircleOutlined,
-  CreditCardOutlined,
   ClockCircleOutlined,
   FileTextOutlined,
   SettingOutlined,
@@ -14,6 +13,8 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   TeamOutlined,
+  GiftOutlined,
+  TagOutlined,
 } from "@ant-design/icons";
 import { usePathname, useRouter } from "next/navigation";
 import type { SessionUser } from "@/lib/auth/session";
@@ -63,6 +64,18 @@ export default function DashboardLayoutClient({
         key: "/installment-orders",
         icon: <FileTextOutlined />,
         label: "Installment Orders",
+        roles: ["admin", "moderator", "user"],
+      },
+      {
+        key: "/reward-points",
+        icon: <GiftOutlined />,
+        label: "Reward Points",
+        roles: ["admin", "moderator", "user"],
+      },
+      {
+        key: "/inactive-coupons",
+        icon: <TagOutlined />,
+        label: "Inactive Coupons",
         roles: ["admin", "moderator", "user"],
       },
       {

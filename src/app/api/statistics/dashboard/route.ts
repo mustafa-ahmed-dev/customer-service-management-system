@@ -21,11 +21,6 @@ export async function GET(request: NextRequest) {
       .from(cancelledOrders)
       .where(eq(cancelledOrders.isArchived, false));
 
-    const [installmentCancelledCount] = await db
-      .select({ count: count() })
-      .from(installmentCancelledOrders)
-      .where(eq(installmentCancelledOrders.isArchived, false));
-
     const [lateOrdersCount] = await db
       .select({ count: count() })
       .from(lateOrders)
@@ -38,7 +33,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       cancelledOrders: cancelledCount.count,
-      installmentCancelled: installmentCancelledCount.count,
       lateOrders: lateOrdersCount.count,
       installmentOrders: installmentOrdersCount.count,
     });

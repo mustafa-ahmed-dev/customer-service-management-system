@@ -180,6 +180,74 @@ export const installmentOrders = pgTable(
   })
 );
 
+// Reward Points Addition Table
+export const rewardPointsAdditions = pgTable(
+  "reward_points_additions",
+  {
+    id: serial("id").primaryKey(),
+    orderNumber: text("order_number").notNull(),
+    customerName: text("customer_name").notNull(),
+    orderStatus: text("order_status").notNull(),
+    deliveryDate: timestamp("delivery_date"),
+    notes: text("notes"),
+
+    // Audit fields
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    createdBy: integer("created_by")
+      .notNull()
+      .references(() => users.id),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    updatedBy: integer("updated_by")
+      .notNull()
+      .references(() => users.id),
+
+    // Archive fields
+    isArchived: boolean("is_archived").default(false).notNull(),
+    archivedAt: timestamp("archived_at"),
+    archivedBy: integer("archived_by").references(() => users.id),
+  },
+  (table) => ({
+    orderNumberIdx: index("reward_points_order_number_idx").on(
+      table.orderNumber
+    ),
+    archivedIdx: index("reward_points_archived_idx").on(table.isArchived),
+  })
+);
+
+export const inactiveCoupons = pgTable(
+  "inactive_coupons",
+  {
+    id: serial("id").primaryKey(),
+    salesOrder: text("sales_order").notNull(), // SO (Sales Order)
+    couponCode: text("coupon_code").notNull(),
+    notes: text("notes"),
+
+    // Audit fields
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    createdBy: integer("created_by")
+      .notNull()
+      .references(() => users.id),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    updatedBy: integer("updated_by")
+      .notNull()
+      .references(() => users.id),
+
+    // Archive fields
+    isArchived: boolean("is_archived").default(false).notNull(),
+    archivedAt: timestamp("archived_at"),
+    archivedBy: integer("archived_by").references(() => users.id),
+  },
+  (table) => ({
+    salesOrderIdx: index("inactive_coupons_sales_order_idx").on(
+      table.salesOrder
+    ),
+    couponCodeIdx: index("inactive_coupons_coupon_code_idx").on(
+      table.couponCode
+    ),
+    archivedIdx: index("inactive_coupons_archived_idx").on(table.isArchived),
+  })
+);
+
 // ==================== RELATIONS ====================
 
 export const cancelledOrdersRelations = relations(
@@ -210,3 +278,39 @@ export const lateOrdersRelations = relations(lateOrders, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const rewardPointsAdditionsRelations = relations(
+  rewardPointsAdditions,
+  ({ one }) => ({
+    createdByUser: one(users, {
+      fields: [rewardPointsAdditions.createdBy],
+      references: [users.id],
+    }),
+    updatedByUser: one(users, {
+      fields: [rewardPointsAdditions.updatedBy],
+      references: [users.id],
+    }),
+    archivedByUser: one(users, {
+      fields: [rewardPointsAdditions.archivedBy],
+      references: [users.id],
+    }),
+  })
+);
+
+export const inactiveCouponsRelations = relations(
+  inactiveCoupons,
+  ({ one }) => ({
+    createdByUser: one(users, {
+      fields: [inactiveCoupons.createdBy],
+      references: [users.id],
+    }),
+    updatedByUser: one(users, {
+      fields: [inactiveCoupons.updatedBy],
+      references: [users.id],
+    }),
+    archivedByUser: one(users, {
+      fields: [inactiveCoupons.archivedBy],
+      references: [users.id],
+    }),
+  })
+);

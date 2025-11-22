@@ -9,11 +9,10 @@ import {
   App,
   Modal,
   Form,
-  Select,
-  Tag,
-  Typography,
-  Switch,
   DatePicker,
+  Typography,
+  Tooltip,
+  Switch,
 } from "antd";
 import {
   PlusOutlined,
@@ -22,22 +21,24 @@ import {
   SearchOutlined,
   CopyOutlined,
   ReloadOutlined,
-  InboxOutlined,
   DownloadOutlined,
+  InboxOutlined,
+  FileExcelOutlined,
 } from "@ant-design/icons";
 import type { SessionUser } from "@/lib/auth/session";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
+import ExcelJS from "exceljs";
 
 const { Title } = Typography;
-const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
-interface LateOrder {
+interface RewardPointsRecord {
   id: number;
   orderNumber: string;
-  governorateName: string;
-  orderDate: string;
+  customerName: string;
+  orderStatus: string;
+  deliveryDate: string;
   notes?: string;
   employeeName: string;
   createdAt: string;
@@ -46,141 +47,101 @@ interface LateOrder {
   archivedAt?: string;
 }
 
-interface Governorate {
-  id: number;
-  name: string;
-}
-
 interface FormValues {
   orderNumber: string;
-  governorateId: number;
-  orderDate: string;
+  customerName: string;
+  orderStatus: string;
+  deliveryDate: dayjs.Dayjs;
   notes?: string;
 }
 
-interface LateOrdersClientProps {
+interface RewardPointsClientProps {
   session: SessionUser;
 }
 
-export default function LateOrdersClient({ session }: LateOrdersClientProps) {
+export default function RewardPointsClient({
+  session,
+}: RewardPointsClientProps) {
   const { message, modal } = App.useApp();
   const [form] = Form.useForm();
 
-  const [orders, setOrders] = useState<LateOrder[]>([]);
+  const [records, setRecords] = useState<RewardPointsRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const [governorateFilter, setGovernorateFilter] = useState<number | null>(
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<RewardPointsRecord | null>(
     null
   );
-  const [dateRange, setDateRange] = useState<[string, string] | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<LateOrder | null>(null);
-
-  const [governorates, setGovernorates] = useState<Governorate[]>([]);
 
   const isAdmin = session.role === "admin";
 
   useEffect(() => {
-    fetchGovernorates();
-    fetchOrders();
-  }, [searchText, showArchived, governorateFilter, dateRange]);
+    fetchRecords();
+  }, [searchText, showArchived]);
 
-  const fetchGovernorates = async () => {
+  const fetchRecords = async () => {
+    setLoading(true);
     try {
-      // Use existing settings API (only fetches active governorates by default)
-      const response = await fetch("/api/settings/governorates");
+      const params = new URLSearchParams();
+      if (searchText) params.append("search", searchText);
+      params.append("archived", showArchived.toString());
+
+      const response = await fetch(`/api/reward-points?${params}`);
       if (response.ok) {
         const data = await response.json();
-        setGovernorates(data.governorates || []);
+        setRecords(data.records);
       } else {
-        message.error("Failed to load governorates");
+        message.error("Failed to fetch records");
       }
     } catch (error) {
-      console.error("Fetch governorates error:", error);
-      message.error("Failed to load governorates");
-    }
-  };
-
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        search: searchText,
-        archived: showArchived.toString(),
-      });
-
-      if (governorateFilter) {
-        params.append("governorateId", governorateFilter.toString());
-      }
-
-      if (dateRange) {
-        params.append("fromDate", dateRange[0]);
-        params.append("toDate", dateRange[1]);
-      }
-
-      const response = await fetch(`/api/late-orders?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data.orders);
-      } else {
-        message.error("Failed to fetch orders");
-      }
-    } catch (error) {
-      console.error("Fetch orders error:", error);
-      message.error("Failed to fetch orders");
+      console.error("Failed to fetch records:", error);
+      message.error("Failed to fetch records");
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateDelayedDays = (orderDate: string): number => {
-    const today = new Date();
-    const order = new Date(orderDate);
-    const diffTime = today.getTime() - order.getTime();
-    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  };
-
   const handleAdd = () => {
-    setEditingOrder(null);
+    setEditingRecord(null);
     form.resetFields();
     setIsModalOpen(true);
   };
 
-  const handleEdit = (order: LateOrder) => {
-    setEditingOrder(order);
+  const handleEdit = (record: RewardPointsRecord) => {
+    setEditingRecord(record);
     form.setFieldsValue({
-      orderNumber: order.orderNumber,
-      governorateId: governorates.find((g) => g.name === order.governorateName)
-        ?.id,
-      orderDate: dayjs(order.orderDate).format("YYYY-MM-DD"),
-      notes: order.notes,
+      orderNumber: record.orderNumber,
+      customerName: record.customerName,
+      orderStatus: record.orderStatus,
+      deliveryDate: dayjs(record.deliveryDate),
+      notes: record.notes,
     });
     setIsModalOpen(true);
   };
 
-  const handleDelete = (order: LateOrder) => {
+  const handleDelete = (record: RewardPointsRecord) => {
     modal.confirm({
-      title: "Archive Order",
-      content: `Are you sure you want to archive order ${order.orderNumber}?`,
+      title: "Archive Record",
+      content: `Are you sure you want to archive this record for order ${record.orderNumber}?`,
       okText: "Archive",
       okType: "danger",
       onOk: async () => {
         try {
-          const response = await fetch(`/api/late-orders/${order.id}`, {
+          const response = await fetch(`/api/reward-points/${record.id}`, {
             method: "DELETE",
           });
 
           if (response.ok) {
-            message.success("Order archived successfully");
-            fetchOrders();
+            message.success("Record archived successfully");
+            fetchRecords();
           } else {
             const data = await response.json();
-            message.error(data.error || "Failed to archive order");
+            message.error(data.error || "Failed to archive record");
           }
         } catch (error) {
           console.error("Archive error:", error);
-          message.error("Failed to archive order");
+          message.error("Failed to archive record");
         }
       },
     });
@@ -188,34 +149,39 @@ export default function LateOrdersClient({ session }: LateOrdersClientProps) {
 
   const handleSubmit = async (values: FormValues) => {
     try {
-      const url = editingOrder
-        ? `/api/late-orders/${editingOrder.id}`
-        : "/api/late-orders";
+      const url = editingRecord
+        ? `/api/reward-points/${editingRecord.id}`
+        : "/api/reward-points";
 
-      const method = editingOrder ? "PUT" : "POST";
+      const method = editingRecord ? "PUT" : "POST";
+
+      const payload = {
+        ...values,
+        deliveryDate: values.deliveryDate.toISOString(),
+      };
 
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
         message.success(
-          editingOrder
-            ? "Order updated successfully"
-            : "Order created successfully"
+          editingRecord
+            ? "Record updated successfully"
+            : "Record created successfully"
         );
         setIsModalOpen(false);
         form.resetFields();
-        fetchOrders();
+        fetchRecords();
       } else {
         const data = await response.json();
-        message.error(data.error || "Failed to save order");
+        message.error(data.error || "Failed to save record");
       }
     } catch (error) {
       console.error("Submit error:", error);
-      message.error("Failed to save order");
+      message.error("Failed to save record");
     }
   };
 
@@ -223,20 +189,22 @@ export default function LateOrdersClient({ session }: LateOrdersClientProps) {
     try {
       const headers = [
         "Order Number",
-        "Governorate",
-        "Order Date",
-        "Delayed Days",
+        "Customer Name",
+        "Order Status",
+        "Delivery Date",
         "Notes",
         "Employee",
+        "Created At",
       ];
 
-      const rows = orders.map((order) => [
-        order.orderNumber,
-        order.governorateName,
-        dayjs(order.orderDate).format("YYYY-MM-DD"),
-        calculateDelayedDays(order.orderDate).toString(),
-        order.notes || "-",
-        order.employeeName,
+      const rows = records.map((record) => [
+        record.orderNumber,
+        record.customerName,
+        record.orderStatus,
+        dayjs(record.deliveryDate).format("YYYY-MM-DD"),
+        record.notes || "-",
+        record.employeeName,
+        dayjs(record.createdAt).format("YYYY-MM-DD HH:mm"),
       ]);
 
       const table = document.createElement("table");
@@ -305,22 +273,22 @@ export default function LateOrdersClient({ session }: LateOrdersClientProps) {
     try {
       const headers = [
         "Order Number",
-        "Governorate",
-        "Order Date",
-        "Delayed Days",
+        "Customer Name",
+        "Order Status",
+        "Delivery Date",
         "Notes",
         "Employee",
         "Created At",
       ];
 
-      const rows = orders.map((order) => [
-        order.orderNumber,
-        order.governorateName,
-        dayjs(order.orderDate).format("YYYY-MM-DD"),
-        calculateDelayedDays(order.orderDate).toString(),
-        order.notes || "",
-        order.employeeName,
-        dayjs(order.createdAt).format("YYYY-MM-DD HH:mm"),
+      const rows = records.map((record) => [
+        record.orderNumber,
+        record.customerName,
+        record.orderStatus,
+        dayjs(record.deliveryDate).format("YYYY-MM-DD"),
+        record.notes || "",
+        record.employeeName,
+        dayjs(record.createdAt).format("YYYY-MM-DD HH:mm"),
       ]);
 
       const csvContent = [
@@ -335,7 +303,7 @@ export default function LateOrdersClient({ session }: LateOrdersClientProps) {
       link.setAttribute("href", url);
       link.setAttribute(
         "download",
-        `late_orders_${dayjs().format("YYYY-MM-DD")}.csv`
+        `reward_points_${dayjs().format("YYYY-MM-DD")}.csv`
       );
       link.style.visibility = "hidden";
 
@@ -350,7 +318,7 @@ export default function LateOrdersClient({ session }: LateOrdersClientProps) {
     }
   };
 
-  const columns: ColumnsType<LateOrder> = [
+  const columns: ColumnsType<RewardPointsRecord> = [
     {
       title: "Order Number",
       dataIndex: "orderNumber",
@@ -359,28 +327,23 @@ export default function LateOrdersClient({ session }: LateOrdersClientProps) {
       fixed: "left" as const,
     },
     {
-      title: "Governorate",
-      dataIndex: "governorateName",
-      key: "governorateName",
+      title: "Customer Name",
+      dataIndex: "customerName",
+      key: "customerName",
+      width: 180,
+    },
+    {
+      title: "Order Status",
+      dataIndex: "orderStatus",
+      key: "orderStatus",
       width: 150,
-      render: (text: string) => <Tag color="blue">{text}</Tag>,
     },
     {
-      title: "Order Date",
-      dataIndex: "orderDate",
-      key: "orderDate",
-      width: 120,
+      title: "Delivery Date",
+      dataIndex: "deliveryDate",
+      key: "deliveryDate",
+      width: 150,
       render: (date: string) => dayjs(date).format("YYYY-MM-DD"),
-    },
-    {
-      title: "Delayed Days",
-      key: "delayedDays",
-      width: 120,
-      render: (_: any, record: LateOrder) => {
-        const days = calculateDelayedDays(record.orderDate);
-        const color = days > 30 ? "red" : days > 14 ? "orange" : "green";
-        return <Tag color={color}>{days} days</Tag>;
-      },
     },
     {
       title: "Notes",
@@ -420,24 +383,28 @@ export default function LateOrdersClient({ session }: LateOrdersClientProps) {
       key: "actions",
       fixed: "right" as const,
       width: 120,
-      render: (_: any, record: LateOrder) => (
-        <Space>
+      render: (_: any, record: RewardPointsRecord) => (
+        <Space size="small">
           {!showArchived && (
-            <>
+            <Tooltip title="Edit">
               <Button
                 type="link"
                 icon={<EditOutlined />}
                 onClick={() => handleEdit(record)}
+                size="small"
               />
-              {isAdmin && (
-                <Button
-                  type="link"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={() => handleDelete(record)}
-                />
-              )}
-            </>
+            </Tooltip>
+          )}
+          {isAdmin && !showArchived && (
+            <Tooltip title="Archive">
+              <Button
+                type="link"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => handleDelete(record)}
+                size="small"
+              />
+            </Tooltip>
           )}
         </Space>
       ),
@@ -447,46 +414,24 @@ export default function LateOrdersClient({ session }: LateOrdersClientProps) {
   return (
     <div>
       <Space
-        direction="vertical"
-        size="large"
-        style={{ display: "flex", marginBottom: 16 }}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: 16,
+          flexWrap: "wrap",
+        }}
       >
-        <Title level={2}>Late Orders Management</Title>
-
-        <Space wrap size="middle">
+        <Title level={2} style={{ margin: 0 }}>
+          Reward Points Addition
+        </Title>
+        <Space wrap>
           <Input
-            placeholder="Search by order number or employee"
+            placeholder="Search by order number or customer name"
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 300 }}
+            style={{ width: 350 }}
             allowClear
-          />
-          <Select
-            placeholder="Filter by governorate"
-            style={{ width: 200 }}
-            allowClear
-            value={governorateFilter}
-            onChange={setGovernorateFilter}
-          >
-            {governorates.map((gov) => (
-              <Select.Option key={gov.id} value={gov.id}>
-                {gov.name}
-              </Select.Option>
-            ))}
-          </Select>
-          <RangePicker
-            placeholder={["From Date", "To Date"]}
-            onChange={(dates) => {
-              if (dates && dates[0] && dates[1]) {
-                setDateRange([
-                  dates[0].format("YYYY-MM-DD"),
-                  dates[1].format("YYYY-MM-DD"),
-                ]);
-              } else {
-                setDateRange(null);
-              }
-            }}
           />
           <Space>
             <InboxOutlined />
@@ -497,7 +442,7 @@ export default function LateOrdersClient({ session }: LateOrdersClientProps) {
               unCheckedChildren="Active"
             />
           </Space>
-          <Button icon={<ReloadOutlined />} onClick={fetchOrders}>
+          <Button icon={<ReloadOutlined />} onClick={fetchRecords}>
             Refresh
           </Button>
           <Button icon={<CopyOutlined />} onClick={copyTableToClipboard}>
@@ -508,7 +453,7 @@ export default function LateOrdersClient({ session }: LateOrdersClientProps) {
           </Button>
           {!showArchived && (
             <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-              Add Order
+              Add Record
             </Button>
           )}
         </Space>
@@ -516,26 +461,30 @@ export default function LateOrdersClient({ session }: LateOrdersClientProps) {
 
       <Table
         columns={columns}
-        dataSource={orders}
+        dataSource={records}
         loading={loading}
         rowKey="id"
         scroll={{ x: 1500 }}
         pagination={{
           pageSize: 20,
           showSizeChanger: true,
-          showTotal: (total) => `Total ${total} orders`,
+          showTotal: (total) => `Total ${total} records`,
         }}
       />
 
       <Modal
-        title={editingOrder ? "Edit Late Order" : "Add Late Order"}
+        title={
+          editingRecord
+            ? "Edit Reward Points Record"
+            : "Add Reward Points Record"
+        }
         open={isModalOpen}
         onCancel={() => {
           setIsModalOpen(false);
           form.resetFields();
         }}
         footer={null}
-        width={600}
+        width={700}
       >
         <Form
           form={form}
@@ -552,29 +501,36 @@ export default function LateOrdersClient({ session }: LateOrdersClientProps) {
           </Form.Item>
 
           <Form.Item
-            name="governorateId"
-            label="Governorate"
-            rules={[{ required: true, message: "Please select a governorate" }]}
+            name="customerName"
+            label="Customer Name"
+            rules={[{ required: true, message: "Please enter customer name" }]}
           >
-            <Select placeholder="Select governorate">
-              {governorates.map((gov) => (
-                <Select.Option key={gov.id} value={gov.id}>
-                  {gov.name}
-                </Select.Option>
-              ))}
-            </Select>
+            <Input placeholder="Enter customer name" />
           </Form.Item>
 
           <Form.Item
-            name="orderDate"
-            label="Order Date"
-            rules={[{ required: true, message: "Please select order date" }]}
+            name="orderStatus"
+            label="Order Status"
+            rules={[{ required: true, message: "Please enter order status" }]}
           >
-            <Input type="date" />
+            <Input placeholder="Enter order status (e.g., Completed, Pending)" />
           </Form.Item>
 
-          <Form.Item name="notes" label="Notes">
-            <TextArea rows={3} placeholder="Optional notes" />
+          <Form.Item
+            name="deliveryDate"
+            label="Delivery Date"
+            rules={[{ required: true, message: "Please select delivery date" }]}
+          >
+            <DatePicker style={{ width: "100%" }} format="YYYY-MM-DD" />
+          </Form.Item>
+
+          <Form.Item name="notes" label="Notes (Optional)">
+            <TextArea
+              placeholder="Enter any additional notes"
+              rows={4}
+              maxLength={500}
+              showCount
+            />
           </Form.Item>
 
           <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
@@ -588,7 +544,7 @@ export default function LateOrdersClient({ session }: LateOrdersClientProps) {
                 Cancel
               </Button>
               <Button type="primary" htmlType="submit">
-                {editingOrder ? "Update" : "Create"}
+                {editingRecord ? "Update" : "Create"}
               </Button>
             </Space>
           </Form.Item>

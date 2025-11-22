@@ -1,7 +1,6 @@
 CREATE TABLE "cancellation_reasons" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"reason" text NOT NULL,
-	"reason_ar" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"created_by" integer,
 	"deactivated_at" timestamp,
@@ -30,7 +29,6 @@ CREATE TABLE "cancelled_orders" (
 CREATE TABLE "governorates" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
-	"name_ar" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"created_by" integer,
 	"deactivated_at" timestamp,
@@ -70,10 +68,25 @@ CREATE TABLE "late_orders" (
 	"archived_by" integer
 );
 --> statement-breakpoint
+CREATE TABLE "reward_points_additions" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"order_number" text NOT NULL,
+	"customer_name" text NOT NULL,
+	"order_status" text NOT NULL,
+	"delivery_date" timestamp,
+	"notes" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"created_by" integer NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"updated_by" integer NOT NULL,
+	"is_archived" boolean DEFAULT false NOT NULL,
+	"archived_at" timestamp,
+	"archived_by" integer
+);
+--> statement-breakpoint
 CREATE TABLE "systems" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
-	"name_ar" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"created_by" integer,
 	"deactivated_at" timestamp,
@@ -109,6 +122,9 @@ ALTER TABLE "late_orders" ADD CONSTRAINT "late_orders_governorate_id_governorate
 ALTER TABLE "late_orders" ADD CONSTRAINT "late_orders_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "late_orders" ADD CONSTRAINT "late_orders_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "late_orders" ADD CONSTRAINT "late_orders_archived_by_users_id_fk" FOREIGN KEY ("archived_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "reward_points_additions" ADD CONSTRAINT "reward_points_additions_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "reward_points_additions" ADD CONSTRAINT "reward_points_additions_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "reward_points_additions" ADD CONSTRAINT "reward_points_additions_archived_by_users_id_fk" FOREIGN KEY ("archived_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "systems" ADD CONSTRAINT "systems_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "systems" ADD CONSTRAINT "systems_deactivated_by_users_id_fk" FOREIGN KEY ("deactivated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "users" ADD CONSTRAINT "users_deactivated_by_users_id_fk" FOREIGN KEY ("deactivated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -121,4 +137,6 @@ CREATE INDEX "installment_orders_archived_idx" ON "installment_orders" USING btr
 CREATE INDEX "late_orders_order_number_idx" ON "late_orders" USING btree ("order_number");--> statement-breakpoint
 CREATE INDEX "late_orders_governorate_idx" ON "late_orders" USING btree ("governorate_id");--> statement-breakpoint
 CREATE INDEX "late_orders_order_date_idx" ON "late_orders" USING btree ("order_date");--> statement-breakpoint
-CREATE INDEX "late_orders_archived_idx" ON "late_orders" USING btree ("is_archived");
+CREATE INDEX "late_orders_archived_idx" ON "late_orders" USING btree ("is_archived");--> statement-breakpoint
+CREATE INDEX "reward_points_order_number_idx" ON "reward_points_additions" USING btree ("order_number");--> statement-breakpoint
+CREATE INDEX "reward_points_archived_idx" ON "reward_points_additions" USING btree ("is_archived");
