@@ -36,9 +36,12 @@ const { TextArea } = Input;
 interface CancelledOrder {
   id: number;
   orderNumber: string;
-  cancellationReason: string;
+  cancellationReasonId: number;
+  cancellationReasonName: string;
+  systemId: number;
   systemName: string;
-  paymentMethod: string;
+  paymentMethodId: number;
+  paymentMethodName: string;
   cardholderName?: string;
   totalAmount?: string;
   notes?: string;
@@ -59,7 +62,7 @@ interface FormValues {
   orderNumber: string;
   cancellationReasonId: number;
   systemId: number;
-  paymentMethod: string;
+  paymentMethodId: number;
   cardholderName?: string;
   totalAmount?: number;
   notes?: string;
@@ -68,20 +71,6 @@ interface FormValues {
 interface CancelledOrdersClientProps {
   session: SessionUser;
 }
-
-const PAYMENT_METHODS = [
-  "Cash on Delivery",
-  "Pay in Installment",
-  "Pay using Visa/Master card",
-  "Zain Cash",
-];
-
-const PAYMENT_METHOD_COLORS: Record<string, string> = {
-  "Cash on Delivery": "green",
-  "Pay in Installment": "blue",
-  "Pay using Visa/Master card": "purple",
-  "Zain Cash": "orange",
-};
 
 export default function CancelledOrdersClient({
   session,
@@ -93,11 +82,6 @@ export default function CancelledOrdersClient({
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const [paymentMethodFilters, setPaymentMethodFilters] = useState<string[]>(
-    []
-  );
-  const [systemFilters, setSystemFilters] = useState<number[]>([]);
-  const [reasonFilters, setReasonFilters] = useState<number[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<CancelledOrder | null>(null);
 
@@ -105,9 +89,16 @@ export default function CancelledOrdersClient({
   const [cancellationReasons, setCancellationReasons] = useState<
     DropdownOption[]
   >([]);
+  const [paymentMethods, setPaymentMethods] = useState<DropdownOption[]>([]);
 
   // Watch payment method to show/hide conditional fields
-  const selectedPaymentMethod = Form.useWatch("paymentMethod", form);
+  const selectedPaymentMethodId = Form.useWatch("paymentMethodId", form);
+  const selectedPaymentMethod = paymentMethods.find(
+    (pm) => pm.id === selectedPaymentMethodId
+  );
+
+  const canEdit = ["admin", "moderator"].includes(session.role);
+  const canDelete = session.role === "admin";
 
   // Fetch dropdown options
   useEffect(() => {
@@ -117,14 +108,7 @@ export default function CancelledOrdersClient({
   // Fetch orders when filters change
   useEffect(() => {
     fetchOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    searchText,
-    showArchived,
-    paymentMethodFilters,
-    systemFilters,
-    reasonFilters,
-  ]);
+  }, [searchText, showArchived]);
 
   const fetchOptions = async () => {
     try {
@@ -133,6 +117,7 @@ export default function CancelledOrdersClient({
         const data = await response.json();
         setSystems(data.systems);
         setCancellationReasons(data.cancellationReasons);
+        setPaymentMethods(data.paymentMethods);
       }
     } catch (error) {
       console.error("Failed to fetch options:", error);
@@ -146,15 +131,6 @@ export default function CancelledOrdersClient({
       const params = new URLSearchParams();
       if (searchText) params.append("search", searchText);
       params.append("archived", showArchived.toString());
-      if (paymentMethodFilters.length > 0) {
-        params.append("paymentMethods", paymentMethodFilters.join(","));
-      }
-      if (systemFilters.length > 0) {
-        params.append("systemIds", systemFilters.join(","));
-      }
-      if (reasonFilters.length > 0) {
-        params.append("reasonIds", reasonFilters.join(","));
-      }
 
       const response = await fetch(`/api/cancelled-orders?${params}`);
       if (response.ok) {
@@ -179,16 +155,11 @@ export default function CancelledOrdersClient({
 
   const handleEdit = (order: CancelledOrder) => {
     setEditingOrder(order);
-    const system = systems.find((s) => s.name === order.systemName);
-    const reason = cancellationReasons.find(
-      (r) => r.reason === order.cancellationReason
-    );
-
     form.setFieldsValue({
       orderNumber: order.orderNumber,
-      systemId: system?.id,
-      cancellationReasonId: reason?.id,
-      paymentMethod: order.paymentMethod,
+      systemId: order.systemId,
+      cancellationReasonId: order.cancellationReasonId,
+      paymentMethodId: order.paymentMethodId,
       cardholderName: order.cardholderName,
       totalAmount: order.totalAmount
         ? parseFloat(order.totalAmount)
@@ -258,92 +229,6 @@ export default function CancelledOrdersClient({
     }
   };
 
-  const copyTableToClipboard = async () => {
-    try {
-      const headers = [
-        "Order Number",
-        "System",
-        "Payment Method",
-        "Cancellation Reason",
-        "Cardholder Name",
-        "Total Amount",
-        "Employee",
-      ];
-
-      const rows = orders.map((order) => [
-        order.orderNumber,
-        order.systemName,
-        order.paymentMethod,
-        order.cancellationReason,
-        order.cardholderName || "-",
-        order.totalAmount
-          ? `$${parseFloat(order.totalAmount).toFixed(2)}`
-          : "-",
-        order.employeeName,
-      ]);
-
-      const table = document.createElement("table");
-      table.style.borderCollapse = "collapse";
-      table.style.width = "100%";
-      table.style.fontFamily = "Arial, sans-serif";
-      table.style.fontSize = "14px";
-      table.style.border = "2px solid #333";
-
-      const thead = document.createElement("thead");
-      const headerRow = document.createElement("tr");
-      headerRow.style.backgroundColor = "#4285f4";
-      headerRow.style.color = "white";
-
-      headers.forEach((header) => {
-        const th = document.createElement("th");
-        th.textContent = header;
-        th.style.border = "1px solid #333";
-        th.style.padding = "10px";
-        th.style.textAlign = "center";
-        th.style.fontWeight = "bold";
-        headerRow.appendChild(th);
-      });
-      thead.appendChild(headerRow);
-      table.appendChild(thead);
-
-      const tbody = document.createElement("tbody");
-      rows.forEach((row, index) => {
-        const tr = document.createElement("tr");
-        tr.style.backgroundColor = index % 2 === 0 ? "#f0f0f0" : "#ffffff";
-
-        row.forEach((cell) => {
-          const td = document.createElement("td");
-          td.textContent = cell;
-          td.style.border = "1px solid #333";
-          td.style.padding = "8px";
-          td.style.textAlign = "center";
-          tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
-      });
-      table.appendChild(tbody);
-
-      table.style.position = "fixed";
-      table.style.left = "-9999px";
-      document.body.appendChild(table);
-
-      const range = document.createRange();
-      range.selectNode(table);
-      window.getSelection()?.removeAllRanges();
-      window.getSelection()?.addRange(range);
-
-      document.execCommand("copy");
-
-      window.getSelection()?.removeAllRanges();
-      document.body.removeChild(table);
-
-      message.success("Table copied! Paste it into Gmail.");
-    } catch (error) {
-      console.error("Copy to clipboard error:", error);
-      message.error("Failed to copy table to clipboard");
-    }
-  };
-
   const exportToCSV = () => {
     try {
       const headers = [
@@ -360,8 +245,8 @@ export default function CancelledOrdersClient({
       const rows = orders.map((order) => [
         order.orderNumber,
         order.systemName,
-        order.paymentMethod,
-        order.cancellationReason,
+        order.paymentMethodName,
+        order.cancellationReasonName,
         order.cardholderName || "",
         order.totalAmount ? parseFloat(order.totalAmount).toFixed(2) : "",
         order.notes || "",
@@ -412,17 +297,15 @@ export default function CancelledOrdersClient({
     },
     {
       title: "Payment Method",
-      dataIndex: "paymentMethod",
-      key: "paymentMethod",
+      dataIndex: "paymentMethodName",
+      key: "paymentMethodName",
       width: 180,
-      render: (method: string) => (
-        <Tag color={PAYMENT_METHOD_COLORS[method] || "default"}>{method}</Tag>
-      ),
+      render: (method: string) => <Tag color="green">{method}</Tag>,
     },
     {
       title: "Cancellation Reason",
-      dataIndex: "cancellationReason",
-      key: "cancellationReason",
+      dataIndex: "cancellationReasonName",
+      key: "cancellationReasonName",
       width: 200,
     },
     {
@@ -438,7 +321,7 @@ export default function CancelledOrdersClient({
       key: "totalAmount",
       width: 120,
       render: (amount: string) =>
-        amount ? `$${parseFloat(amount).toFixed(2)}` : "-",
+        amount ? `IQD ${parseFloat(amount).toFixed(2)}` : "-",
     },
     {
       title: "Notes",
@@ -487,7 +370,7 @@ export default function CancelledOrdersClient({
       width: 120,
       render: (_: any, record: CancelledOrder) => (
         <Space size="small">
-          {!showArchived && (
+          {canEdit && !showArchived && (
             <Tooltip title="Edit">
               <Button
                 type="link"
@@ -497,7 +380,7 @@ export default function CancelledOrdersClient({
               />
             </Tooltip>
           )}
-          {session.role === "admin" && !showArchived && (
+          {canDelete && !showArchived && (
             <Tooltip title="Delete">
               <Button
                 type="link"
@@ -526,60 +409,15 @@ export default function CancelledOrdersClient({
         <Title level={2} style={{ margin: 0 }}>
           Cancelled Orders
         </Title>
-        <Space wrap>
+        <Space wrap size="small">
           <Input
-            placeholder="Search by order number, employee, or cardholder"
+            placeholder="Search orders..."
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 350 }}
+            style={{ width: 250 }}
             allowClear
           />
-          <Select
-            mode="multiple"
-            placeholder="Filter by payment method"
-            value={paymentMethodFilters}
-            onChange={setPaymentMethodFilters}
-            style={{ minWidth: 250 }}
-            allowClear
-            maxTagCount="responsive"
-          >
-            {PAYMENT_METHODS.map((method) => (
-              <Select.Option key={method} value={method}>
-                {method}
-              </Select.Option>
-            ))}
-          </Select>
-          <Select
-            mode="multiple"
-            placeholder="Filter by system"
-            value={systemFilters}
-            onChange={setSystemFilters}
-            style={{ minWidth: 200 }}
-            allowClear
-            maxTagCount="responsive"
-          >
-            {systems.map((system) => (
-              <Select.Option key={system.id} value={system.id}>
-                {system.name}
-              </Select.Option>
-            ))}
-          </Select>
-          <Select
-            mode="multiple"
-            placeholder="Filter by cancellation reason"
-            value={reasonFilters}
-            onChange={setReasonFilters}
-            style={{ minWidth: 250 }}
-            allowClear
-            maxTagCount="responsive"
-          >
-            {cancellationReasons.map((reason) => (
-              <Select.Option key={reason.id} value={reason.id}>
-                {reason.reason}
-              </Select.Option>
-            ))}
-          </Select>
           <Space>
             <InboxOutlined />
             <Switch
@@ -591,9 +429,6 @@ export default function CancelledOrdersClient({
           </Space>
           <Button icon={<ReloadOutlined />} onClick={fetchOrders}>
             Refresh
-          </Button>
-          <Button icon={<CopyOutlined />} onClick={copyTableToClipboard}>
-            Copy Table
           </Button>
           <Button icon={<DownloadOutlined />} onClick={exportToCSV}>
             Export CSV
@@ -658,16 +493,16 @@ export default function CancelledOrdersClient({
           </Form.Item>
 
           <Form.Item
-            name="paymentMethod"
+            name="paymentMethodId"
             label="Payment Method"
             rules={[
               { required: true, message: "Please select payment method" },
             ]}
           >
             <Select placeholder="Select payment method">
-              {PAYMENT_METHODS.map((method) => (
-                <Select.Option key={method} value={method}>
-                  {method}
+              {paymentMethods.map((method) => (
+                <Select.Option key={method.id} value={method.id}>
+                  {method.name}
                 </Select.Option>
               ))}
             </Select>
@@ -690,7 +525,7 @@ export default function CancelledOrdersClient({
           </Form.Item>
 
           {/* Conditional fields - only show for "Pay in Installment" */}
-          {selectedPaymentMethod === "Pay in Installment" && (
+          {selectedPaymentMethod?.name === "Pay in Installment" && (
             <>
               <Form.Item
                 name="cardholderName"
@@ -707,7 +542,7 @@ export default function CancelledOrdersClient({
 
               <Form.Item
                 name="totalAmount"
-                label="Total Amount"
+                label="Total Amount (IQD)"
                 rules={[
                   { required: true, message: "Please enter total amount" },
                   {
@@ -720,22 +555,25 @@ export default function CancelledOrdersClient({
                 <InputNumber
                   placeholder="Enter amount"
                   style={{ width: "100%" }}
-                  prefix="$"
+                  formatter={(value) =>
+                    `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                  }
+                  parser={(value) => value!.replace(/\$\s?|(,*)/g, "")}
                   precision={2}
                   min={0}
                 />
               </Form.Item>
-
-              <Form.Item name="notes" label="Notes (Optional)">
-                <TextArea
-                  placeholder="Enter any additional notes"
-                  rows={4}
-                  maxLength={500}
-                  showCount
-                />
-              </Form.Item>
             </>
           )}
+
+          <Form.Item name="notes" label="Notes (Optional)">
+            <TextArea
+              placeholder="Enter any additional notes"
+              rows={4}
+              maxLength={500}
+              showCount
+            />
+          </Form.Item>
 
           <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
             <Space>

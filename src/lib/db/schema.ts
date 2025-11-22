@@ -80,8 +80,12 @@ export const cancelledOrders = pgTable(
       .notNull()
       .references(() => systems.id),
 
-    paymentMethod: text("payment_method").notNull(),
+    // UPDATED: Payment method as foreign key instead of text
+    paymentMethodId: integer("payment_method_id")
+      .notNull()
+      .references(() => paymentMethods.id),
 
+    // Installment-specific fields (nullable, only for installment payments)
     cardholderName: text("cardholder_name"),
     totalAmount: numeric("total_amount", { precision: 10, scale: 2 }),
     notes: text("notes"),
@@ -103,7 +107,7 @@ export const cancelledOrders = pgTable(
   },
   (table) => [
     index("cancelled_orders_order_number_idx").on(table.orderNumber),
-    index("cancelled_orders_payment_method_idx").on(table.paymentMethod),
+    index("cancelled_orders_payment_method_idx").on(table.paymentMethodId),
     index("cancelled_orders_archived_idx").on(table.isArchived),
   ]
 );
@@ -307,6 +311,10 @@ export const cancelledOrdersRelations = relations(
     createdByUser: one(users, {
       fields: [cancelledOrders.createdBy],
       references: [users.id],
+    }),
+    paymentMethod: one(paymentMethods, {
+      fields: [cancelledOrders.paymentMethodId],
+      references: [paymentMethods.id],
     }),
   })
 );

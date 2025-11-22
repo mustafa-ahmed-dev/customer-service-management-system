@@ -4,9 +4,10 @@ import {
   cancelledOrders,
   cancellationReasons,
   systems,
+  paymentMethods,
   users,
 } from "@/lib/db/schema";
-import { eq, like, or, desc, and, isNull } from "drizzle-orm";
+import { eq, like, or, desc, and } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
 
 // GET - Fetch cancelled orders
@@ -19,60 +20,35 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
-    const archived = searchParams.get("archived") === "true";
-    const paymentMethods = searchParams.get("paymentMethods") || "";
-    const systemIds = searchParams.get("systemIds") || "";
-    const reasonIds = searchParams.get("reasonIds") || "";
 
-    // Parse comma-separated filters
-    const paymentMethodArray = paymentMethods ? paymentMethods.split(",") : [];
-    const systemIdArray = systemIds ? systemIds.split(",").map(Number) : [];
-    const reasonIdArray = reasonIds ? reasonIds.split(",").map(Number) : [];
+    const conditions = [eq(cancelledOrders.isArchived, false)];
 
-    // Build where conditions
-    const conditions = [
-      eq(cancelledOrders.isArchived, archived),
-      search
-        ? or(
-            like(cancelledOrders.orderNumber, `%${search}%`),
-            like(users.fullName, `%${search}%`),
-            like(cancelledOrders.cardholderName, `%${search}%`)
-          )
-        : undefined,
-      paymentMethodArray.length > 0
-        ? or(
-            ...paymentMethodArray.map((pm) =>
-              eq(cancelledOrders.paymentMethod, pm)
-            )
-          )
-        : undefined,
-      systemIdArray.length > 0
-        ? or(...systemIdArray.map((id) => eq(cancelledOrders.systemId, id)))
-        : undefined,
-      reasonIdArray.length > 0
-        ? or(
-            ...reasonIdArray.map((id) =>
-              eq(cancelledOrders.cancellationReasonId, id)
-            )
-          )
-        : undefined,
-    ].filter(Boolean);
+    if (search) {
+      conditions.push(
+        or(
+          like(cancelledOrders.orderNumber, `%${search}%`),
+          like(cancelledOrders.cardholderName, `%${search}%`),
+          like(cancelledOrders.notes, `%${search}%`)
+        )!
+      );
+    }
 
     const orders = await db
       .select({
         id: cancelledOrders.id,
         orderNumber: cancelledOrders.orderNumber,
-        cancellationReason: cancellationReasons.reason,
+        cancellationReasonId: cancelledOrders.cancellationReasonId,
+        cancellationReasonName: cancellationReasons.reason,
+        systemId: cancelledOrders.systemId,
         systemName: systems.name,
-        paymentMethod: cancelledOrders.paymentMethod,
+        paymentMethodId: cancelledOrders.paymentMethodId,
+        paymentMethodName: paymentMethods.name,
         cardholderName: cancelledOrders.cardholderName,
         totalAmount: cancelledOrders.totalAmount,
         notes: cancelledOrders.notes,
         employeeName: users.fullName,
         createdAt: cancelledOrders.createdAt,
         updatedAt: cancelledOrders.updatedAt,
-        isArchived: cancelledOrders.isArchived,
-        archivedAt: cancelledOrders.archivedAt,
       })
       .from(cancelledOrders)
       .leftJoin(
@@ -80,6 +56,10 @@ export async function GET(request: NextRequest) {
         eq(cancelledOrders.cancellationReasonId, cancellationReasons.id)
       )
       .leftJoin(systems, eq(cancelledOrders.systemId, systems.id))
+      .leftJoin(
+        paymentMethods,
+        eq(cancelledOrders.paymentMethodId, paymentMethods.id)
+      )
       .leftJoin(users, eq(cancelledOrders.createdBy, users.id))
       .where(and(...conditions))
       .orderBy(desc(cancelledOrders.createdAt));
@@ -107,14 +87,19 @@ export async function POST(request: NextRequest) {
       orderNumber,
       cancellationReasonId,
       systemId,
-      paymentMethod,
+      paymentMethodId,
       cardholderName,
       totalAmount,
       notes,
     } = body;
 
     // Validate required fields
-    if (!orderNumber || !cancellationReasonId || !systemId || !paymentMethod) {
+    if (
+      !orderNumber ||
+      !cancellationReasonId ||
+      !systemId ||
+      !paymentMethodId
+    ) {
       return NextResponse.json(
         {
           error:
@@ -124,40 +109,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate payment method
-    const validPaymentMethods = [
-      "Cash on Delivery",
-      "Pay in Installment",
-      "Pay using Visa/Master card",
-      "Zain Cash",
-    ];
-    if (!validPaymentMethods.includes(paymentMethod)) {
-      return NextResponse.json(
-        { error: "Invalid payment method" },
-        { status: 400 }
-      );
-    }
-
-    // If payment method is "Pay in Installment", require additional fields
-    if (paymentMethod === "Pay in Installment") {
-      if (!cardholderName || !totalAmount) {
-        return NextResponse.json(
-          {
-            error:
-              "Cardholder name and total amount are required for installment payments",
-          },
-          { status: 400 }
-        );
-      }
-    }
-
     const [order] = await db
       .insert(cancelledOrders)
       .values({
         orderNumber,
-        cancellationReasonId,
-        systemId,
-        paymentMethod,
+        cancellationReasonId: parseInt(cancellationReasonId),
+        systemId: parseInt(systemId),
+        paymentMethodId: parseInt(paymentMethodId),
         cardholderName: cardholderName || null,
         totalAmount: totalAmount ? totalAmount.toString() : null,
         notes: notes || null,

@@ -27,46 +27,32 @@ export async function PUT(
       orderNumber,
       cancellationReasonId,
       systemId,
-      paymentMethod,
+      paymentMethodId,
       cardholderName,
       totalAmount,
       notes,
     } = body;
 
-    // Validate payment method
-    const validPaymentMethods = [
-      "Cash on Delivery",
-      "Pay in Installment",
-      "Pay using Visa/Master card",
-      "Zain Cash",
-    ];
-    if (!validPaymentMethods.includes(paymentMethod)) {
+    // Validate required fields
+    if (
+      !orderNumber ||
+      !cancellationReasonId ||
+      !systemId ||
+      !paymentMethodId
+    ) {
       return NextResponse.json(
-        { error: "Invalid payment method" },
+        { error: "Missing required fields" },
         { status: 400 }
       );
-    }
-
-    // If payment method is "Pay in Installment", require additional fields
-    if (paymentMethod === "Pay in Installment") {
-      if (!cardholderName || !totalAmount) {
-        return NextResponse.json(
-          {
-            error:
-              "Cardholder name and total amount are required for installment payments",
-          },
-          { status: 400 }
-        );
-      }
     }
 
     const [order] = await db
       .update(cancelledOrders)
       .set({
         orderNumber,
-        cancellationReasonId,
-        systemId,
-        paymentMethod,
+        cancellationReasonId: parseInt(cancellationReasonId),
+        systemId: parseInt(systemId),
+        paymentMethodId: parseInt(paymentMethodId),
         cardholderName: cardholderName || null,
         totalAmount: totalAmount ? totalAmount.toString() : null,
         notes: notes || null,
