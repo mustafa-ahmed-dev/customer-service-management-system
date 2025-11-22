@@ -22,9 +22,9 @@ export const PERMISSIONS = {
   // User management
   MANAGE_USERS: ["admin"], // ONLY admin
 
-  // Installment orders special
-  EDIT_INSTALLMENT_BASIC: ["admin", "moderator", "user"], // orderNumber, installmentId, isAddedToMagento
-  EDIT_INSTALLMENT_ADMIN: ["admin", "moderator"], // cardholder info
+  VIEW_FINANCE: ["admin", "moderator", "user"], // Everyone can view
+  MANAGE_FINANCE: ["admin", "moderator", "user"], // But requires hasFinanceAccess attribute
+  MANAGE_PAYMENT_METHODS: ["admin", "moderator"], // In settings
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -32,6 +32,20 @@ export type Role = "admin" | "moderator" | "user";
 
 export function hasPermission(userRole: Role, permission: Permission): boolean {
   return PERMISSIONS[permission].includes(userRole);
+}
+
+export function hasFinanceAccess(
+  userRole: Role,
+  hasFinanceAttribute: boolean,
+  operation: "view" | "manage"
+): boolean {
+  // View is allowed for all authenticated users
+  if (operation === "view") {
+    return true;
+  }
+
+  // Manage requires the special attribute (regardless of role)
+  return hasFinanceAttribute;
 }
 
 export function requirePermission(

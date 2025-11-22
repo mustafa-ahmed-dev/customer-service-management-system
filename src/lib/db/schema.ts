@@ -18,6 +18,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(), // argon2 hashed (97 chars)
   fullName: text("full_name").notNull(),
   role: text("role").notNull(), // 'admin' | 'moderator' | 'user'
+  hasFinanceAccess: boolean("has_finance_access").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   deactivatedAt: timestamp("deactivated_at"),
   deactivatedBy: integer("deactivated_by").references((): any => users.id),
@@ -55,6 +56,13 @@ export const governorates = pgTable("governorates", {
   deactivatedBy: integer("deactivated_by").references(() => users.id),
 });
 
+export const paymentMethods = pgTable("payment_methods", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // ==================== MAIN DATA TABLES ====================
 
 // Cancelled Orders Table
@@ -72,11 +80,8 @@ export const cancelledOrders = pgTable(
       .notNull()
       .references(() => systems.id),
 
-    // NEW: Payment method field (required)
     paymentMethod: text("payment_method").notNull(),
-    // Options: 'Cash on Delivery' | 'Pay in Installment' | 'Pay using Visa/Master card' | 'Zain Cash'
 
-    // NEW: Installment-specific fields (nullable, only for installment payments)
     cardholderName: text("cardholder_name"),
     totalAmount: numeric("total_amount", { precision: 10, scale: 2 }),
     notes: text("notes"),
@@ -218,7 +223,7 @@ export const inactiveCoupons = pgTable(
   "inactive_coupons",
   {
     id: serial("id").primaryKey(),
-    salesOrder: text("sales_order").notNull(), // SO (Sales Order)
+    salesOrder: text("sales_order").notNull(),
     couponCode: text("coupon_code").notNull(),
     notes: text("notes"),
 
@@ -246,6 +251,44 @@ export const inactiveCoupons = pgTable(
     ),
     archivedIdx: index("inactive_coupons_archived_idx").on(table.isArchived),
   })
+);
+
+// Finance Transactions Table
+export const financeTransactions = pgTable(
+  "finance_transactions",
+  {
+    id: serial("id").primaryKey(),
+    phoneNumber: text("phone_number").notNull(),
+    orderNumber: text("order_number"),
+    customerName: text("customer_name").notNull(),
+    paymentMethodId: integer("payment_method_id")
+      .notNull()
+      .references(() => paymentMethods.id),
+    amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+    status: text("status").notNull(),
+    notes: text("notes"),
+
+    // Audit fields
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    createdBy: integer("created_by")
+      .notNull()
+      .references(() => users.id),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    updatedBy: integer("updated_by")
+      .notNull()
+      .references(() => users.id),
+
+    // Archive fields
+    isArchived: boolean("is_archived").default(false).notNull(),
+    archivedAt: timestamp("archived_at"),
+    archivedBy: integer("archived_by").references(() => users.id),
+  },
+  (table) => [
+    index("finance_phone_number_idx").on(table.phoneNumber),
+    index("finance_order_number_idx").on(table.orderNumber),
+    index("finance_status_idx").on(table.status),
+    index("finance_archived_idx").on(table.isArchived),
+  ]
 );
 
 // ==================== RELATIONS ====================
@@ -310,6 +353,28 @@ export const inactiveCouponsRelations = relations(
     }),
     archivedByUser: one(users, {
       fields: [inactiveCoupons.archivedBy],
+      references: [users.id],
+    }),
+  })
+);
+
+export const financeTransactionsRelations = relations(
+  financeTransactions,
+  ({ one }) => ({
+    paymentMethod: one(paymentMethods, {
+      fields: [financeTransactions.paymentMethodId],
+      references: [paymentMethods.id],
+    }),
+    createdByUser: one(users, {
+      fields: [financeTransactions.createdBy],
+      references: [users.id],
+    }),
+    updatedByUser: one(users, {
+      fields: [financeTransactions.updatedBy],
+      references: [users.id],
+    }),
+    archivedByUser: one(users, {
+      fields: [financeTransactions.archivedBy],
       references: [users.id],
     }),
   })

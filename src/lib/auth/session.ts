@@ -13,6 +13,14 @@ export interface SessionUser {
 const SESSION_COOKIE_NAME = "session";
 const SESSION_DURATION = 7 * 24 * 60 * 60; // 7 days in seconds
 
+export interface SessionUser {
+  id: number;
+  email: string;
+  fullName: string;
+  role: "admin" | "moderator" | "user";
+  hasFinanceAccess: boolean; // NEW
+}
+
 export async function createSession(userId: number): Promise<string> {
   const sessionToken = encodeSessionToken(userId);
   const cookieStore = await cookies();
@@ -49,6 +57,7 @@ export async function getSession(): Promise<SessionUser | null> {
         email: users.email,
         fullName: users.fullName,
         role: users.role,
+        hasFinanceAccess: users.hasFinanceAccess,
         deactivatedAt: users.deactivatedAt,
       })
       .from(users)
@@ -64,6 +73,7 @@ export async function getSession(): Promise<SessionUser | null> {
       email: user.email,
       fullName: user.fullName,
       role: user.role as "admin" | "moderator" | "user",
+      hasFinanceAccess: user.hasFinanceAccess,
     };
   } catch (error) {
     console.error("Get session error:", error);

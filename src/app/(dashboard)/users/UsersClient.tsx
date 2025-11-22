@@ -14,6 +14,7 @@ import {
   Typography,
   Tooltip,
   Switch,
+  Checkbox,
 } from "antd";
 import {
   PlusOutlined,
@@ -22,6 +23,7 @@ import {
   SearchOutlined,
   ReloadOutlined,
   UserOutlined,
+  DollarOutlined,
 } from "@ant-design/icons";
 import type { SessionUser } from "@/lib/auth/session";
 import type { ColumnsType } from "antd/es/table";
@@ -34,6 +36,7 @@ interface User {
   email: string;
   fullName: string;
   role: string;
+  hasFinanceAccess: boolean;
   createdAt: string;
   deactivatedAt?: string;
 }
@@ -43,6 +46,7 @@ interface FormValues {
   password?: string;
   fullName: string;
   role: string;
+  hasFinanceAccess: boolean;
 }
 
 interface UsersClientProps {
@@ -98,6 +102,7 @@ export default function UsersClient({ session }: UsersClientProps) {
       email: user.email,
       fullName: user.fullName,
       role: user.role,
+      hasFinanceAccess: user.hasFinanceAccess,
       password: "", // Don't populate password
     });
     setIsModalOpen(true);
@@ -140,30 +145,22 @@ export default function UsersClient({ session }: UsersClientProps) {
       const url = editingUser ? `/api/users/${editingUser.id}` : "/api/users";
       const method = editingUser ? "PUT" : "POST";
 
-      // Don't send password if it's empty during edit
-      const payload = { ...values };
-      if (editingUser && !values.password) {
-        delete payload.password;
-      }
-
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(values),
       });
 
       if (response.ok) {
         message.success(
-          editingUser
-            ? "User updated successfully"
-            : "User created successfully"
+          `User ${editingUser ? "updated" : "created"} successfully`
         );
         setIsModalOpen(false);
         form.resetFields();
         fetchUsers();
       } else {
         const data = await response.json();
-        message.error(data.error || "Failed to save user");
+        message.error(data.error || "Operation failed");
       }
     } catch (error) {
       console.error("Submit error:", error);
@@ -172,16 +169,12 @@ export default function UsersClient({ session }: UsersClientProps) {
   };
 
   const getRoleColor = (role: string) => {
-    switch (role) {
-      case "admin":
-        return "red";
-      case "moderator":
-        return "blue";
-      case "user":
-        return "green";
-      default:
-        return "default";
-    }
+    const colors: Record<string, string> = {
+      admin: "red",
+      moderator: "blue",
+      user: "green",
+    };
+    return colors[role] || "default";
   };
 
   const columns: ColumnsType<User> = [
@@ -189,31 +182,54 @@ export default function UsersClient({ session }: UsersClientProps) {
       title: "Full Name",
       dataIndex: "fullName",
       key: "fullName",
-      width: 200,
+      sorter: (a, b) => a.fullName.localeCompare(b.fullName),
     },
     {
       title: "Email",
       dataIndex: "email",
       key: "email",
-      width: 250,
+      sorter: (a, b) => a.email.localeCompare(b.email),
     },
     {
       title: "Role",
       dataIndex: "role",
       key: "role",
-      width: 120,
       render: (role: string) => (
-        <Tag color={getRoleColor(role)}>
-          {role.charAt(0).toUpperCase() + role.slice(1)}
-        </Tag>
+        <Tag color={getRoleColor(role)}>{role.toUpperCase()}</Tag>
       ),
+      filters: [
+        { text: "Admin", value: "admin" },
+        { text: "Moderator", value: "moderator" },
+        { text: "User", value: "user" },
+      ],
+      onFilter: (value, record) => record.role === value,
+    },
+    {
+      title: "Finance Access",
+      dataIndex: "hasFinanceAccess",
+      key: "hasFinanceAccess",
+      width: 150,
+      render: (hasAccess: boolean) =>
+        hasAccess ? (
+          <Tag icon={<DollarOutlined />} color="success">
+            Enabled
+          </Tag>
+        ) : (
+          <Tag color="default">Disabled</Tag>
+        ),
+      filters: [
+        { text: "Enabled", value: true },
+        { text: "Disabled", value: false },
+      ],
+      onFilter: (value, record) => record.hasFinanceAccess === value,
     },
     {
       title: "Created At",
       dataIndex: "createdAt",
       key: "createdAt",
-      width: 180,
       render: (date: string) => dayjs(date).format("YYYY-MM-DD HH:mm"),
+      sorter: (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     },
     ...(showDeactivated
       ? [
@@ -317,70 +333,79 @@ export default function UsersClient({ session }: UsersClientProps) {
       />
 
       <Modal
-        title={editingUser ? "Edit User" : "Add User"}
+        title={editingUser ? "Edit User" : "Add New User"}
         open={isModalOpen}
         onCancel={() => {
           setIsModalOpen(false);
           form.resetFields();
         }}
         footer={null}
-        width={600}
+        width={500}
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
-          style={{ marginTop: 24 }}
+          initialValues={{ hasFinanceAccess: false }}
         >
           <Form.Item
-            name="fullName"
-            label="Full Name"
-            rules={[{ required: true, message: "Please enter full name" }]}
-          >
-            <Input placeholder="Enter full name" />
-          </Form.Item>
-
-          <Form.Item
-            name="email"
             label="Email"
+            name="email"
             rules={[
               { required: true, message: "Please enter email" },
               { type: "email", message: "Please enter a valid email" },
             ]}
           >
-            <Input placeholder="email@elryan.com" />
+            <Input placeholder="user@example.com" />
           </Form.Item>
 
           <Form.Item
+            label="Password"
             name="password"
-            label={
-              editingUser
-                ? "Password (leave blank to keep current)"
-                : "Password"
-            }
             rules={
               editingUser
                 ? []
                 : [{ required: true, message: "Please enter password" }]
             }
+            help={editingUser ? "Leave blank to keep current password" : ""}
           >
             <Input.Password placeholder="Enter password" />
           </Form.Item>
 
           <Form.Item
-            name="role"
+            label="Full Name"
+            name="fullName"
+            rules={[{ required: true, message: "Please enter full name" }]}
+          >
+            <Input placeholder="John Doe" />
+          </Form.Item>
+
+          <Form.Item
             label="Role"
+            name="role"
             rules={[{ required: true, message: "Please select a role" }]}
           >
             <Select placeholder="Select role">
-              <Select.Option value="user">User</Select.Option>
-              <Select.Option value="moderator">Moderator</Select.Option>
               <Select.Option value="admin">Admin</Select.Option>
+              <Select.Option value="moderator">Moderator</Select.Option>
+              <Select.Option value="user">User</Select.Option>
             </Select>
           </Form.Item>
 
-          <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
+          <Form.Item name="hasFinanceAccess" valuePropName="checked">
+            <Checkbox>
+              <Space>
+                <DollarOutlined />
+                <span>Grant Finance Access</span>
+              </Space>
+            </Checkbox>
+          </Form.Item>
+
+          <Form.Item>
             <Space>
+              <Button type="primary" htmlType="submit">
+                {editingUser ? "Update" : "Create"}
+              </Button>
               <Button
                 onClick={() => {
                   setIsModalOpen(false);
@@ -388,9 +413,6 @@ export default function UsersClient({ session }: UsersClientProps) {
                 }}
               >
                 Cancel
-              </Button>
-              <Button type="primary" htmlType="submit">
-                {editingUser ? "Update" : "Create"}
               </Button>
             </Space>
           </Form.Item>

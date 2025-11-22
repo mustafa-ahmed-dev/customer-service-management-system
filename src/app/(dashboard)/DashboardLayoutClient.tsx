@@ -15,6 +15,7 @@ import {
   TeamOutlined,
   GiftOutlined,
   TagOutlined,
+  DollarOutlined,
 } from "@ant-design/icons";
 import { usePathname, useRouter } from "next/navigation";
 import type { SessionUser } from "@/lib/auth/session";
@@ -76,6 +77,12 @@ export default function DashboardLayoutClient({
         key: "/inactive-coupons",
         icon: <TagOutlined />,
         label: "Inactive Coupons",
+        roles: ["admin", "moderator", "user"],
+      },
+      {
+        key: "/finance",
+        icon: <DollarOutlined />,
+        label: "Finance",
         roles: ["admin", "moderator", "user"],
       },
       {

@@ -23,7 +23,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { email, password, fullName, role } = body;
+    const { email, password, fullName, role, hasFinanceAccess } = body;
 
     // Validate role
     if (role && !["admin", "moderator", "user"].includes(role)) {
@@ -51,6 +51,8 @@ export async function PUT(
       email,
       fullName,
       role,
+      hasFinanceAccess:
+        hasFinanceAccess !== undefined ? hasFinanceAccess : false,
     };
 
     // Only update password if provided
@@ -67,6 +69,7 @@ export async function PUT(
         email: users.email,
         fullName: users.fullName,
         role: users.role,
+        hasFinanceAccess: users.hasFinanceAccess,
         createdAt: users.createdAt,
       });
 

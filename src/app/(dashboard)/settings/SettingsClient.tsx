@@ -14,6 +14,7 @@ import {
   Tooltip,
   Switch,
   Card,
+  Tag,
 } from "antd";
 import {
   PlusOutlined,
@@ -21,6 +22,7 @@ import {
   DeleteOutlined,
   ReloadOutlined,
   BulbOutlined,
+  DollarOutlined,
 } from "@ant-design/icons";
 import type { SessionUser } from "@/lib/auth/session";
 import type { ColumnsType } from "antd/es/table";
@@ -32,6 +34,7 @@ interface ListItem {
   id: number;
   name?: string;
   reason?: string;
+  isActive?: boolean;
   createdAt: string;
   createdByName?: string;
   deactivatedAt?: string;
@@ -50,6 +53,7 @@ type TabKey =
   | "cancellation-reasons"
   | "systems"
   | "governorates"
+  | "payment-methods"
   | "appearance";
 
 export default function SettingsClient({ session }: SettingsClientProps) {
@@ -66,6 +70,7 @@ export default function SettingsClient({ session }: SettingsClientProps) {
   );
   const [systems, setSystems] = useState<ListItem[]>([]);
   const [governoratesData, setGovernoratesData] = useState<ListItem[]>([]);
+  const [paymentMethodsData, setPaymentMethodsData] = useState<ListItem[]>([]);
 
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -96,6 +101,10 @@ export default function SettingsClient({ session }: SettingsClientProps) {
           endpoint = "/api/settings/governorates?includeDeactivated=true";
           setter = setGovernoratesData;
           break;
+        case "payment-methods":
+          endpoint = "/api/settings/payment-methods?includeDeactivated=true";
+          setter = setPaymentMethodsData;
+          break;
         default:
           return;
       }
@@ -103,7 +112,12 @@ export default function SettingsClient({ session }: SettingsClientProps) {
       const response = await fetch(endpoint);
       if (response.ok) {
         const data = await response.json();
-        const items = data.reasons || data.systems || data.governorates || [];
+        const items =
+          data.reasons ||
+          data.systems ||
+          data.governorates ||
+          data.paymentMethods ||
+          [];
         setter(items);
       } else {
         message.error("Failed to fetch data");
@@ -152,6 +166,9 @@ export default function SettingsClient({ session }: SettingsClientProps) {
             case "governorates":
               endpoint = `/api/settings/governorates/${item.id}`;
               break;
+            case "payment-methods":
+              endpoint = `/api/settings/payment-methods/${item.id}`;
+              break;
           }
 
           const response = await fetch(endpoint, { method: "DELETE" });
@@ -173,7 +190,6 @@ export default function SettingsClient({ session }: SettingsClientProps) {
 
   const handleSubmit = async (values: FormValues) => {
     try {
-      // Auto-populate Arabic fields with English values
       const payload =
         activeTab === "cancellation-reasons"
           ? { reason: values.reason }
@@ -197,6 +213,11 @@ export default function SettingsClient({ session }: SettingsClientProps) {
           endpoint = editingItem
             ? `/api/settings/governorates/${editingItem.id}`
             : "/api/settings/governorates";
+          break;
+        case "payment-methods":
+          endpoint = editingItem
+            ? `/api/settings/payment-methods/${editingItem.id}`
+            : "/api/settings/payment-methods";
           break;
       }
 
@@ -227,6 +248,7 @@ export default function SettingsClient({ session }: SettingsClientProps) {
 
   const getColumns = (): ColumnsType<ListItem> => {
     const isReasons = activeTab === "cancellation-reasons";
+    const isPaymentMethods = activeTab === "payment-methods";
     const nameField = isReasons ? "reason" : "name";
 
     return [
@@ -236,13 +258,17 @@ export default function SettingsClient({ session }: SettingsClientProps) {
         key: nameField,
         width: 300,
       },
-      {
-        title: "Created By",
-        dataIndex: "createdByName",
-        key: "createdByName",
-        width: 150,
-        render: (name: string) => name || "-",
-      },
+      ...(isPaymentMethods
+        ? []
+        : [
+            {
+              title: "Created By",
+              dataIndex: "createdByName",
+              key: "createdByName",
+              width: 150,
+              render: (name: string) => name || "-",
+            },
+          ]),
       {
         title: "Created At",
         dataIndex: "createdAt",
@@ -252,46 +278,59 @@ export default function SettingsClient({ session }: SettingsClientProps) {
       },
       {
         title: "Status",
-        dataIndex: "deactivatedAt",
+        dataIndex: isPaymentMethods ? "isActive" : "deactivatedAt",
         key: "status",
         width: 100,
-        render: (deactivatedAt: string) =>
-          deactivatedAt ? (
-            <Text type="danger">Deactivated</Text>
+        render: (value: any) => {
+          if (isPaymentMethods) {
+            return value ? (
+              <Tag color="success">Active</Tag>
+            ) : (
+              <Tag color="error">Inactive</Tag>
+            );
+          }
+          return value ? (
+            <Tag color="error">Inactive</Tag>
           ) : (
-            <Text type="success">Active</Text>
-          ),
+            <Tag color="success">Active</Tag>
+          );
+        },
       },
       {
         title: "Actions",
         key: "actions",
         fixed: "right" as const,
         width: 120,
-        render: (_: any, record: ListItem) => (
-          <Space size="small">
-            {canManage && !record.deactivatedAt && (
-              <Tooltip title="Edit">
-                <Button
-                  type="link"
-                  icon={<EditOutlined />}
-                  onClick={() => handleEdit(record)}
-                  size="small"
-                />
-              </Tooltip>
-            )}
-            {canDelete && !record.deactivatedAt && (
-              <Tooltip title="Deactivate">
-                <Button
-                  type="link"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={() => handleDelete(record)}
-                  size="small"
-                />
-              </Tooltip>
-            )}
-          </Space>
-        ),
+        render: (_: any, record: ListItem) => {
+          const isActive = isPaymentMethods
+            ? record.isActive
+            : !record.deactivatedAt;
+          return (
+            <Space size="small">
+              {canManage && isActive && (
+                <Tooltip title="Edit">
+                  <Button
+                    type="link"
+                    icon={<EditOutlined />}
+                    onClick={() => handleEdit(record)}
+                    size="small"
+                  />
+                </Tooltip>
+              )}
+              {canDelete && isActive && (
+                <Tooltip title="Deactivate">
+                  <Button
+                    type="link"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={() => handleDelete(record)}
+                    size="small"
+                  />
+                </Tooltip>
+              )}
+            </Space>
+          );
+        },
       },
     ];
   };
@@ -304,6 +343,8 @@ export default function SettingsClient({ session }: SettingsClientProps) {
         return systems;
       case "governorates":
         return governoratesData;
+      case "payment-methods":
+        return paymentMethodsData;
       default:
         return [];
     }
@@ -318,6 +359,8 @@ export default function SettingsClient({ session }: SettingsClientProps) {
         return `${action} System`;
       case "governorates":
         return `${action} Governorate`;
+      case "payment-methods":
+        return `${action} Payment Method`;
       default:
         return action;
     }
@@ -463,6 +506,56 @@ export default function SettingsClient({ session }: SettingsClientProps) {
       ),
     },
     {
+      key: "payment-methods",
+      label: (
+        <span>
+          <DollarOutlined /> Payment Methods
+        </span>
+      ),
+      children: (
+        <div>
+          <Space
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: 16,
+            }}
+          >
+            <Title level={4} style={{ margin: 0 }}>
+              Manage Payment Methods
+            </Title>
+            <Space>
+              <Button icon={<ReloadOutlined />} onClick={fetchData}>
+                Refresh
+              </Button>
+              {canManage && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleAdd}
+                >
+                  Add Payment Method
+                </Button>
+              )}
+            </Space>
+          </Space>
+
+          <Table
+            columns={getColumns()}
+            dataSource={getCurrentData()}
+            loading={loading}
+            rowKey="id"
+            scroll={{ x: 1000 }}
+            pagination={{
+              pageSize: 20,
+              showSizeChanger: true,
+              showTotal: (total) => `Total ${total} items`,
+            }}
+          />
+        </div>
+      ),
+    },
+    {
       key: "appearance",
       label: "Appearance",
       children: (
@@ -538,34 +631,44 @@ export default function SettingsClient({ session }: SettingsClientProps) {
           style={{ marginTop: 24 }}
         >
           {activeTab === "cancellation-reasons" ? (
-            <>
-              <Form.Item
-                name="reason"
-                label="Cancellation Reason"
-                rules={[
-                  {
-                    required: true,
-                    message: "Please enter cancellation reason",
-                  },
-                ]}
-              >
-                <Input placeholder="Enter cancellation reason" />
-              </Form.Item>
-            </>
+            <Form.Item
+              label="Cancellation Reason"
+              name="reason"
+              rules={[
+                { required: true, message: "Please enter cancellation reason" },
+              ]}
+            >
+              <Input placeholder="Enter cancellation reason" />
+            </Form.Item>
           ) : (
-            <>
-              <Form.Item
-                name="name"
-                label="Name"
-                rules={[{ required: true, message: "Please enter name" }]}
-              >
-                <Input placeholder="Enter name" />
-              </Form.Item>
-            </>
+            <Form.Item
+              label={
+                activeTab === "systems"
+                  ? "System Name"
+                  : activeTab === "governorates"
+                  ? "Governorate Name"
+                  : "Payment Method Name"
+              }
+              name="name"
+              rules={[{ required: true, message: "Please enter name" }]}
+            >
+              <Input
+                placeholder={
+                  activeTab === "systems"
+                    ? "Enter system name"
+                    : activeTab === "governorates"
+                    ? "Enter governorate name"
+                    : "Enter payment method name (e.g., Cash, Credit Card, Bank Transfer)"
+                }
+              />
+            </Form.Item>
           )}
 
-          <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
+          <Form.Item>
             <Space>
+              <Button type="primary" htmlType="submit">
+                {editingItem ? "Update" : "Create"}
+              </Button>
               <Button
                 onClick={() => {
                   setIsModalOpen(false);
@@ -573,9 +676,6 @@ export default function SettingsClient({ session }: SettingsClientProps) {
                 }}
               >
                 Cancel
-              </Button>
-              <Button type="primary" htmlType="submit">
-                {editingItem ? "Update" : "Create"}
               </Button>
             </Space>
           </Form.Item>

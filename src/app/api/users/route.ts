@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { eq, isNull, or, like } from "drizzle-orm";
+import { like, or, isNull, isNotNull } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
 import { hash } from "argon2";
 
-// GET - Fetch all users (non-deactivated)
+// GET - Fetch all users
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
@@ -22,37 +22,40 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const showDeactivated = searchParams.get("deactivated") === "true";
 
-    const allUsers = await db
+    let query = db
       .select({
         id: users.id,
         email: users.email,
         fullName: users.fullName,
         role: users.role,
+        hasFinanceAccess: users.hasFinanceAccess,
         createdAt: users.createdAt,
         deactivatedAt: users.deactivatedAt,
       })
-      .from(users)
-      .where(
-        showDeactivated
-          ? search
-            ? or(
-                like(users.email, `%${search}%`),
-                like(users.fullName, `%${search}%`)
-              )
-            : undefined
-          : search
-          ? or(
-              like(users.email, `%${search}%`),
-              like(users.fullName, `%${search}%`),
-              isNull(users.deactivatedAt)
-            )
-          : isNull(users.deactivatedAt)
-      )
-      .orderBy(users.createdAt);
+      .from(users);
+
+    // Filter by search
+    if (search) {
+      query = query.where(
+        or(
+          like(users.email, `%${search}%`),
+          like(users.fullName, `%${search}%`)
+        )!
+      ) as any;
+    }
+
+    // Filter by deactivated status
+    if (showDeactivated) {
+      query = query.where(isNotNull(users.deactivatedAt)) as any;
+    } else {
+      query = query.where(isNull(users.deactivatedAt)) as any;
+    }
+
+    const allUsers = await query;
 
     return NextResponse.json({ users: allUsers });
   } catch (error) {
-    console.error("Get users error:", error);
+    console.error("Fetch users error:", error);
     return NextResponse.json(
       { error: "Failed to fetch users" },
       { status: 500 }
@@ -74,12 +77,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, password, fullName, role } = body;
+    const { email, password, fullName, role, hasFinanceAccess } = body;
 
-    // Validate input
+    // Validate required fields
     if (!email || !password || !fullName || !role) {
       return NextResponse.json(
-        { error: "All fields are required" },
+        { error: "Missing required fields" },
         { status: 400 }
       );
     }
@@ -93,7 +96,7 @@ export async function POST(request: NextRequest) {
     const existingUser = await db
       .select()
       .from(users)
-      .where(eq(users.email, email))
+      .where(like(users.email, email))
       .limit(1);
 
     if (existingUser.length > 0) {
@@ -114,12 +117,14 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         fullName,
         role,
+        hasFinanceAccess: hasFinanceAccess || false,
       })
       .returning({
         id: users.id,
         email: users.email,
         fullName: users.fullName,
         role: users.role,
+        hasFinanceAccess: users.hasFinanceAccess,
         createdAt: users.createdAt,
       });
 

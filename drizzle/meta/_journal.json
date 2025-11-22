@@ -15,6 +15,13 @@
       "when": 1763816369721,
       "tag": "0001_dusty_terror",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1763826441270,
+      "tag": "0002_mushy_raider",
+      "breakpoints": true
     }
   ]
 }
