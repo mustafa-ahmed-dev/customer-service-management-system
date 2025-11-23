@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { paymentMethods } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { paymentMethods, users } from "@/lib/db/schema";
+import { eq, isNull } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
 
-// GET - Fetch payment methods for dropdown
+// GET - Fetch payment methods and users for dropdown
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // All authenticated users can view payment methods
+    // All authenticated users can view payment methods and users
     // No role restriction - everyone needs this for viewing
 
     const methods = await db
@@ -24,11 +24,25 @@ export async function GET(request: NextRequest) {
       .where(eq(paymentMethods.isActive, true))
       .orderBy(paymentMethods.name);
 
-    return NextResponse.json({ paymentMethods: methods });
+    // Fetch active users (not deactivated)
+    const activeUsers = await db
+      .select({
+        id: users.id,
+        fullName: users.fullName,
+        role: users.role,
+      })
+      .from(users)
+      .where(isNull(users.deactivatedAt))
+      .orderBy(users.fullName);
+
+    return NextResponse.json({
+      paymentMethods: methods,
+      users: activeUsers,
+    });
   } catch (error) {
-    console.error("Fetch payment methods error:", error);
+    console.error("Fetch options error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch payment methods" },
+      { error: "Failed to fetch options" },
       { status: 500 }
     );
   }

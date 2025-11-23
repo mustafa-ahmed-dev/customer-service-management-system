@@ -24,9 +24,11 @@ import {
   InboxOutlined,
   ReloadOutlined,
   UndoOutlined,
+  DownloadOutlined,
 } from "@ant-design/icons";
 import type { SessionUser } from "@/lib/auth/session";
 import type { ColumnsType } from "antd/es/table";
+import dayjs from "dayjs";
 
 const { TextArea } = Input;
 
@@ -39,8 +41,10 @@ interface FinanceTransaction {
   paymentMethodName: string;
   amount: string;
   status: string;
-  notes?: string;
+  employeeId: number;
   employeeName: string;
+  notes?: string;
+  createdByName: string;
   createdAt: string;
   updatedAt: string;
   archivedAt?: string;
@@ -51,6 +55,12 @@ interface PaymentMethod {
   name: string;
 }
 
+interface User {
+  id: number;
+  fullName: string;
+  role: string;
+}
+
 interface FormValues {
   phoneNumber: string;
   orderNumber?: string;
@@ -58,6 +68,7 @@ interface FormValues {
   paymentMethodId: number;
   amount: number;
   status: string;
+  employeeId: number;
   notes?: string;
 }
 
@@ -71,6 +82,7 @@ export default function FinanceClient({ session }: FinanceClientProps) {
 
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -132,9 +144,10 @@ export default function FinanceClient({ session }: FinanceClientProps) {
       if (response.ok) {
         const data = await response.json();
         setPaymentMethods(data.paymentMethods);
+        setUsers(data.users);
       }
     } catch (error) {
-      console.error("Failed to fetch payment methods:", error);
+      console.error("Failed to fetch options:", error);
     }
   };
 
@@ -161,6 +174,7 @@ export default function FinanceClient({ session }: FinanceClientProps) {
       paymentMethodId: transaction.paymentMethodId,
       amount: parseFloat(transaction.amount),
       status: transaction.status,
+      employeeId: transaction.employeeId,
       notes: transaction.notes,
     });
     setIsModalOpen(true);
@@ -231,6 +245,84 @@ export default function FinanceClient({ session }: FinanceClientProps) {
     } catch (error) {
       console.error("Failed to unarchive transaction:", error);
       message.error("Failed to unarchive transaction");
+    }
+  };
+
+  const exportToCSV = () => {
+    if (transactions.length === 0) {
+      message.warning("No transactions to export");
+      return;
+    }
+
+    try {
+      const headers = [
+        "ID",
+        "Phone Number",
+        "Order Number",
+        "Customer Name",
+        "Payment Method",
+        "Amount (IQD)",
+        "Status",
+        "Employee",
+        "Created By",
+        "Notes",
+        "Created At",
+        "Updated At",
+        ...(showArchived ? ["Archived At"] : []),
+      ];
+
+      const rows = transactions.map((transaction) => [
+        transaction.id,
+        transaction.phoneNumber,
+        transaction.orderNumber || "",
+        transaction.customerName,
+        transaction.paymentMethodName,
+        parseFloat(transaction.amount).toFixed(2),
+        transaction.status,
+        transaction.employeeName,
+        transaction.createdByName,
+        transaction.notes || "",
+        new Date(transaction.createdAt).toLocaleString(),
+        new Date(transaction.updatedAt).toLocaleString(),
+        ...(showArchived && transaction.archivedAt
+          ? [new Date(transaction.archivedAt).toLocaleString()]
+          : showArchived
+          ? [""]
+          : []),
+      ]);
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) =>
+          row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+        ),
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `finance_transactions_${
+          showArchived ? "archived_" : ""
+        }${dayjs().format("YYYY-MM-DD_HHmm")}.csv`
+      );
+      link.style.visibility = "hidden";
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      message.success(
+        `Exported ${transactions.length} transaction${
+          transactions.length !== 1 ? "s" : ""
+        } to CSV`
+      );
+    } catch (error) {
+      console.error("Export to CSV error:", error);
+      message.error("Failed to export CSV");
     }
   };
 
@@ -330,6 +422,12 @@ export default function FinanceClient({ session }: FinanceClientProps) {
       title: "Employee",
       dataIndex: "employeeName",
       key: "employeeName",
+      width: 150,
+    },
+    {
+      title: "Created By",
+      dataIndex: "createdByName",
+      key: "createdByName",
       width: 150,
     },
     {
@@ -446,6 +544,9 @@ export default function FinanceClient({ session }: FinanceClientProps) {
           <Button icon={<ReloadOutlined />} onClick={fetchTransactions}>
             Refresh
           </Button>
+          <Button icon={<DownloadOutlined />} onClick={exportToCSV}>
+            Export CSV
+          </Button>
           {hasFullAccess && !showArchived && (
             <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
               Add Transaction
@@ -509,6 +610,28 @@ export default function FinanceClient({ session }: FinanceClientProps) {
               {paymentMethods.map((method) => (
                 <Select.Option key={method.id} value={method.id}>
                   {method.name}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Employee"
+            name="employeeId"
+            rules={[{ required: true, message: "Please select employee" }]}
+          >
+            <Select
+              placeholder="Select employee handling this transaction"
+              showSearch
+              filterOption={(input, option) =>
+                (option?.children as string)
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+            >
+              {users.map((user) => (
+                <Select.Option key={user.id} value={user.id}>
+                  {user.fullName} ({user.role})
                 </Select.Option>
               ))}
             </Select>

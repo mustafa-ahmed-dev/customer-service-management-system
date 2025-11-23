@@ -263,13 +263,19 @@ export const financeTransactions = pgTable(
   {
     id: serial("id").primaryKey(),
     phoneNumber: text("phone_number").notNull(),
-    orderNumber: text("order_number"),
+    orderNumber: text("order_number"), // Optional
     customerName: text("customer_name").notNull(),
     paymentMethodId: integer("payment_method_id")
       .notNull()
       .references(() => paymentMethods.id),
     amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
-    status: text("status").notNull(),
+    status: text("status").notNull(), // e.g., "pending", "completed", "failed"
+
+    // NEW: Employee handling the transaction
+    employeeId: integer("employee_id")
+      .notNull()
+      .references(() => users.id),
+
     notes: text("notes"),
 
     // Audit fields
@@ -291,6 +297,7 @@ export const financeTransactions = pgTable(
     index("finance_phone_number_idx").on(table.phoneNumber),
     index("finance_order_number_idx").on(table.orderNumber),
     index("finance_status_idx").on(table.status),
+    index("finance_employee_idx").on(table.employeeId),
     index("finance_archived_idx").on(table.isArchived),
   ]
 );
@@ -372,6 +379,10 @@ export const financeTransactionsRelations = relations(
     paymentMethod: one(paymentMethods, {
       fields: [financeTransactions.paymentMethodId],
       references: [paymentMethods.id],
+    }),
+    employee: one(users, {
+      fields: [financeTransactions.employeeId],
+      references: [users.id],
     }),
     createdByUser: one(users, {
       fields: [financeTransactions.createdBy],

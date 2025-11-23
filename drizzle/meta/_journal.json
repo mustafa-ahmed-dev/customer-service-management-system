@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1763812169185,
-      "tag": "0000_violet_maddog",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1763816369721,
-      "tag": "0001_dusty_terror",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1763826441270,
-      "tag": "0002_mushy_raider",
+      "when": 1763835531979,
+      "tag": "0000_magenta_magneto",
       "breakpoints": true
     }
   ]

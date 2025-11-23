@@ -54,8 +54,10 @@ export async function GET(request: NextRequest) {
         paymentMethodName: paymentMethods.name,
         amount: financeTransactions.amount,
         status: financeTransactions.status,
-        notes: financeTransactions.notes,
+        employeeId: financeTransactions.employeeId,
         employeeName: users.fullName,
+        notes: financeTransactions.notes,
+        createdByName: sql<string>`(SELECT full_name FROM users WHERE id = ${financeTransactions.createdBy})`,
         createdAt: financeTransactions.createdAt,
         updatedAt: financeTransactions.updatedAt,
         archivedAt: financeTransactions.archivedAt,
@@ -65,7 +67,7 @@ export async function GET(request: NextRequest) {
         paymentMethods,
         eq(financeTransactions.paymentMethodId, paymentMethods.id)
       )
-      .leftJoin(users, eq(financeTransactions.createdBy, users.id))
+      .leftJoin(users, eq(financeTransactions.employeeId, users.id))
       .where(and(...conditions))
       .orderBy(desc(financeTransactions.createdAt));
 
@@ -103,6 +105,7 @@ export async function POST(request: NextRequest) {
       paymentMethodId,
       amount,
       status,
+      employeeId,
       notes,
     } = body;
 
@@ -112,7 +115,8 @@ export async function POST(request: NextRequest) {
       !customerName ||
       !paymentMethodId ||
       !amount ||
-      !status
+      !status ||
+      !employeeId
     ) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -129,6 +133,7 @@ export async function POST(request: NextRequest) {
         paymentMethodId: parseInt(paymentMethodId),
         amount: amount.toString(),
         status,
+        employeeId: parseInt(employeeId),
         notes: notes || null,
         createdBy: session.id,
         updatedBy: session.id,

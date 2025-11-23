@@ -13,9 +13,28 @@ CREATE TABLE "cancelled_orders" (
 	"order_number" text NOT NULL,
 	"cancellation_reason_id" integer NOT NULL,
 	"system_id" integer NOT NULL,
-	"payment_method" text NOT NULL,
+	"payment_method_id" integer NOT NULL,
 	"cardholder_name" text,
 	"total_amount" numeric(10, 2),
+	"notes" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"created_by" integer NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"updated_by" integer NOT NULL,
+	"is_archived" boolean DEFAULT false NOT NULL,
+	"archived_at" timestamp,
+	"archived_by" integer
+);
+--> statement-breakpoint
+CREATE TABLE "finance_transactions" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"phone_number" text NOT NULL,
+	"order_number" text,
+	"customer_name" text NOT NULL,
+	"payment_method_id" integer NOT NULL,
+	"amount" numeric(10, 2) NOT NULL,
+	"status" text NOT NULL,
+	"employee_id" integer NOT NULL,
 	"notes" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"created_by" integer NOT NULL,
@@ -34,6 +53,20 @@ CREATE TABLE "governorates" (
 	"deactivated_at" timestamp,
 	"deactivated_by" integer,
 	CONSTRAINT "governorates_name_unique" UNIQUE("name")
+);
+--> statement-breakpoint
+CREATE TABLE "inactive_coupons" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"sales_order" text NOT NULL,
+	"coupon_code" text NOT NULL,
+	"notes" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"created_by" integer NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"updated_by" integer NOT NULL,
+	"is_archived" boolean DEFAULT false NOT NULL,
+	"archived_at" timestamp,
+	"archived_by" integer
 );
 --> statement-breakpoint
 CREATE TABLE "installment_orders" (
@@ -68,6 +101,14 @@ CREATE TABLE "late_orders" (
 	"archived_by" integer
 );
 --> statement-breakpoint
+CREATE TABLE "payment_methods" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "payment_methods_name_unique" UNIQUE("name")
+);
+--> statement-breakpoint
 CREATE TABLE "reward_points_additions" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"order_number" text NOT NULL,
@@ -100,6 +141,7 @@ CREATE TABLE "users" (
 	"password" text NOT NULL,
 	"full_name" text NOT NULL,
 	"role" text NOT NULL,
+	"has_finance_access" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"deactivated_at" timestamp,
 	"deactivated_by" integer,
@@ -110,11 +152,20 @@ ALTER TABLE "cancellation_reasons" ADD CONSTRAINT "cancellation_reasons_created_
 ALTER TABLE "cancellation_reasons" ADD CONSTRAINT "cancellation_reasons_deactivated_by_users_id_fk" FOREIGN KEY ("deactivated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cancelled_orders" ADD CONSTRAINT "cancelled_orders_cancellation_reason_id_cancellation_reasons_id_fk" FOREIGN KEY ("cancellation_reason_id") REFERENCES "public"."cancellation_reasons"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cancelled_orders" ADD CONSTRAINT "cancelled_orders_system_id_systems_id_fk" FOREIGN KEY ("system_id") REFERENCES "public"."systems"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cancelled_orders" ADD CONSTRAINT "cancelled_orders_payment_method_id_payment_methods_id_fk" FOREIGN KEY ("payment_method_id") REFERENCES "public"."payment_methods"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cancelled_orders" ADD CONSTRAINT "cancelled_orders_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cancelled_orders" ADD CONSTRAINT "cancelled_orders_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cancelled_orders" ADD CONSTRAINT "cancelled_orders_archived_by_users_id_fk" FOREIGN KEY ("archived_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "finance_transactions" ADD CONSTRAINT "finance_transactions_payment_method_id_payment_methods_id_fk" FOREIGN KEY ("payment_method_id") REFERENCES "public"."payment_methods"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "finance_transactions" ADD CONSTRAINT "finance_transactions_employee_id_users_id_fk" FOREIGN KEY ("employee_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "finance_transactions" ADD CONSTRAINT "finance_transactions_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "finance_transactions" ADD CONSTRAINT "finance_transactions_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "finance_transactions" ADD CONSTRAINT "finance_transactions_archived_by_users_id_fk" FOREIGN KEY ("archived_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "governorates" ADD CONSTRAINT "governorates_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "governorates" ADD CONSTRAINT "governorates_deactivated_by_users_id_fk" FOREIGN KEY ("deactivated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inactive_coupons" ADD CONSTRAINT "inactive_coupons_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inactive_coupons" ADD CONSTRAINT "inactive_coupons_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inactive_coupons" ADD CONSTRAINT "inactive_coupons_archived_by_users_id_fk" FOREIGN KEY ("archived_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "installment_orders" ADD CONSTRAINT "installment_orders_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "installment_orders" ADD CONSTRAINT "installment_orders_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "installment_orders" ADD CONSTRAINT "installment_orders_archived_by_users_id_fk" FOREIGN KEY ("archived_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -129,8 +180,16 @@ ALTER TABLE "systems" ADD CONSTRAINT "systems_created_by_users_id_fk" FOREIGN KE
 ALTER TABLE "systems" ADD CONSTRAINT "systems_deactivated_by_users_id_fk" FOREIGN KEY ("deactivated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "users" ADD CONSTRAINT "users_deactivated_by_users_id_fk" FOREIGN KEY ("deactivated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "cancelled_orders_order_number_idx" ON "cancelled_orders" USING btree ("order_number");--> statement-breakpoint
-CREATE INDEX "cancelled_orders_payment_method_idx" ON "cancelled_orders" USING btree ("payment_method");--> statement-breakpoint
+CREATE INDEX "cancelled_orders_payment_method_idx" ON "cancelled_orders" USING btree ("payment_method_id");--> statement-breakpoint
 CREATE INDEX "cancelled_orders_archived_idx" ON "cancelled_orders" USING btree ("is_archived");--> statement-breakpoint
+CREATE INDEX "finance_phone_number_idx" ON "finance_transactions" USING btree ("phone_number");--> statement-breakpoint
+CREATE INDEX "finance_order_number_idx" ON "finance_transactions" USING btree ("order_number");--> statement-breakpoint
+CREATE INDEX "finance_status_idx" ON "finance_transactions" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "finance_employee_idx" ON "finance_transactions" USING btree ("employee_id");--> statement-breakpoint
+CREATE INDEX "finance_archived_idx" ON "finance_transactions" USING btree ("is_archived");--> statement-breakpoint
+CREATE INDEX "inactive_coupons_sales_order_idx" ON "inactive_coupons" USING btree ("sales_order");--> statement-breakpoint
+CREATE INDEX "inactive_coupons_coupon_code_idx" ON "inactive_coupons" USING btree ("coupon_code");--> statement-breakpoint
+CREATE INDEX "inactive_coupons_archived_idx" ON "inactive_coupons" USING btree ("is_archived");--> statement-breakpoint
 CREATE INDEX "installment_orders_order_number_idx" ON "installment_orders" USING btree ("order_number");--> statement-breakpoint
 CREATE INDEX "installment_orders_installment_id_idx" ON "installment_orders" USING btree ("installment_id");--> statement-breakpoint
 CREATE INDEX "installment_orders_archived_idx" ON "installment_orders" USING btree ("is_archived");--> statement-breakpoint

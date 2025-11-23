@@ -32,6 +32,7 @@ export async function PUT(
       paymentMethodId,
       amount,
       status,
+      employeeId,
       notes,
     } = body;
 
@@ -41,7 +42,8 @@ export async function PUT(
       !customerName ||
       !paymentMethodId ||
       !amount ||
-      !status
+      !status ||
+      !employeeId
     ) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -58,6 +60,7 @@ export async function PUT(
         paymentMethodId: parseInt(paymentMethodId),
         amount: amount.toString(),
         status,
+        employeeId: parseInt(employeeId),
         notes: notes || null,
         updatedBy: session.id,
         updatedAt: new Date(),
